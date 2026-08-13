@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ForenSync Pro - Digital Forensics Suite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        .drop-zone { border: 3px dashed #cbd5e1; transition: all 0.3s; }
+        .drop-zone.dragover { border-color: #3b82f6; background: #eff6ff; }
+        .tool-card { transition: all 0.3s; cursor: pointer; border: 2px solid transparent; }
+        .tool-card:hover { transform: translateY(-3px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .tool-card.selected { border-color: #3b82f6; background: #eff6ff; }
+        .hex-view { font-family: 'Courier New', monospace; background: #1a1a1a; color: #00ff00; }
+        .tree-item { cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+        .tree-item:hover { background: #e5e7eb; }
+        .tree-item.selected { background: #dbeafe; color: #1e40af; }
+        .progress-bar { transition: width 0.5s ease; }
+        .tab-btn { transition: all 0.3s; }
+        .tab-btn.active { background: #3b82f6; color: white; }
+        .evidence-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+        .carved-item { animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .timeline-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 8px; }
+        .artifact-tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin: 2px; }
+    </style>
+<base target="_blank">
+</head>
+<body class="bg-gray-100 min-h-screen">
+    
+    <!-- Navigation -->
+    <nav class="bg-slate-900 text-white shadow-lg">
+        <div class="container mx-auto px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-shield-alt text-3xl text-blue-400"></i>
+                    <div>
+                        <h1 class="text-2xl font-bold">ForenSync Pro</h1>
+                        <p class="text-xs text-slate-400">Enterprise Digital Forensics Platform</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-6">
+                    <div class="flex items-center space-x-2 text-sm">
+                        <button onclick="loadAuditLogModal()" class="px-3 py-1 bg-green-600 hover:bg-green-500 rounded-full text-xs font-medium cursor-pointer transition">
+                            <i class="fas fa-check-circle mr-1"></i>Chain of Custody Active (View Ledger)
+                        </button>
+                    </div>
+                    <span class="text-slate-300 text-sm"><i class="fas fa-user-shield mr-1"></i> <span id="currentUser">Forensic Examiner</span></span>
+                    <button onclick="loadCtfScenarios()" class="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                        <i class="fas fa-flag mr-2"></i>CTF Challenges
+                    </button>
+                    <button onclick="exportReport()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-medium">
+                        <i class="fas fa-download mr-2"></i>Export Report
+                    </button>
+                    <button onclick="resetWorkspace()" class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm font-medium" title="Clear all cases, evidence, and reports">
+                        <i class="fas fa-trash-alt mr-1.5"></i>Reset Workspace
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-6 py-6">
+        
+        <!-- Stats Dashboard -->
+        <div class="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
+            <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-blue-500">
+                <p class="text-xs text-gray-500 uppercase font-bold">Cases</p>
+                <p class="text-2xl font-bold text-gray-800" id="statCases">0</p>
+            </div>
+            <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-green-500">
+                <p class="text-xs text-gray-500 uppercase font-bold">Evidence Items</p>
+                <p class="text-2xl font-bold text-gray-800" id="statEvidence">0</p>
+            </div>
+            <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-purple-500">
+                <p class="text-xs text-gray-500 uppercase font-bold">Files Carved</p>
+                <p class="text-2xl font-bold text-gray-800" id="statCarved">0</p>
+            </div>
+            <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-orange-500">
+                <p class="text-xs text-gray-500 uppercase font-bold">Artifacts Found</p>
+                <p class="text-2xl font-bold text-gray-800" id="statArtifacts">0</p>
+            </div>
+            <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-red-500">
+                <p class="text-xs text-gray-500 uppercase font-bold">Deleted Recovered</p>
+                <p class="text-2xl font-bold text-gray-800" id="statDeleted">0</p>
+            </div>
+            <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-yellow-500">
+                <p class="text-xs text-gray-500 uppercase font-bold">Keywords Hit</p>
+                <p class="text-2xl font-bold text-gray-800" id="statKeywords">0</p>
+            </div>
+        </div>
+
+        <!-- ForenSync Real Forensic Panel -->
+        <div class="mb-6 bg-slate-800 rounded-xl shadow-lg border border-slate-700 overflow-hidden">
+            <div class="bg-gradient-to-r from-slate-900 to-blue-900 px-6 py-4 flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-shield-alt text-blue-400 text-2xl"></i>
+                    <div>
+                        <h2 class="text-white font-bold text-lg">ForenSync — Active Investigation</h2>
+                        <p class="text-slate-400 text-xs">Real forensic analysis powered by backend plugins</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <div id="activeCaseInfo" class="text-right">
+                        <p class="text-slate-400 text-xs">Active Case</p>
+                        <p class="text-white text-sm font-bold" id="activeCaseName">None selected</p>
+                        <p class="text-blue-300 text-xs" id="activeCaseNumber"></p>
+                    </div>
+                    <button onclick="document.getElementById('caseModal').classList.remove('hidden')"
+                            class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                        <i class="fas fa-plus mr-2"></i>New Case
+                    </button>
+                </div>
+            </div>
+
+            <div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                <!-- Upload Column -->
+                <div>
+                    <h3 class="text-white font-bold mb-3"><i class="fas fa-upload mr-2 text-blue-400"></i>Upload Evidence</h3>
+                    <div class="drop-zone rounded-lg p-6 text-center cursor-pointer border-2 border-slate-600 bg-slate-900"
+                         id="dropZone"
+                         onclick="document.getElementById('fileInput').click()"
+                         ondragover="event.preventDefault(); this.classList.add('dragover')"
+                         ondragleave="this.classList.remove('dragover')"
+                         ondrop="event.preventDefault(); this.classList.remove('dragover'); uploadEvidence(event.dataTransfer.files[0])">
+                        <input type="file" id="fileInput" class="hidden" accept="*/*"
+                               onchange="uploadEvidence(this.files[0])">
+                        <i class="fas fa-cloud-upload-alt text-4xl text-slate-500 mb-2"></i>
+                        <p class="text-slate-300 text-sm font-medium">Drop any file or click to browse</p>
+                        <p class="text-slate-500 text-xs mt-1">JPG, PNG, PDF, RAW disk images, any file</p>
+                    </div>
+                    <p class="text-slate-400 text-xs mt-2 text-center">File is saved to evidence folder with MD5 hash for chain of custody</p>
+                </div>
+
+                <!-- Evidence List Column -->
+                <div>
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-white font-bold"><i class="fas fa-folder-open mr-2 text-green-400"></i>Evidence Items</h3>
+                        <button onclick="loadEvidenceList()" class="text-xs text-slate-400 hover:text-white">
+                            <i class="fas fa-refresh mr-1"></i>Refresh
+                        </button>
+                    </div>
+                    <div id="evidenceList" class="space-y-2 max-h-48 overflow-y-auto">
+                        <p class="text-slate-400 text-sm text-center py-4">Loading evidence...</p>
+                    </div>
+                </div>
+
+                <!-- Carving Results Column -->
+                <div>
+                    <h3 class="text-white font-bold mb-3"><i class="fas fa-cut mr-2 text-purple-400"></i>File Carving Engine</h3>
+                    <div class="grid grid-cols-4 gap-2 mb-3">
+                        <div class="bg-slate-900 rounded p-2 text-center border border-slate-700">
+                            <p class="text-xl font-bold text-green-400" id="carvedJpg">0</p>
+                            <p class="text-xs text-slate-400">JPEG</p>
+                        </div>
+                        <div class="bg-slate-900 rounded p-2 text-center border border-slate-700">
+                            <p class="text-xl font-bold text-red-400" id="carvedPdf">0</p>
+                            <p class="text-xs text-slate-400">PDF</p>
+                        </div>
+                        <div class="bg-slate-900 rounded p-2 text-center border border-slate-700">
+                            <p class="text-xl font-bold text-blue-400" id="carvedPng">0</p>
+                            <p class="text-xs text-slate-400">PNG</p>
+                        </div>
+                        <div class="bg-slate-900 rounded p-2 text-center border border-slate-700">
+                            <p class="text-xl font-bold text-yellow-400" id="carvedZip">0</p>
+                            <p class="text-xs text-slate-400">ZIP</p>
+                        </div>
+                    </div>
+                    <div id="carvingPanel" class="hidden">
+                        <p class="text-slate-300 text-xs mb-2">
+                            Selected: <span id="selectedEvidenceName" class="text-blue-300 font-mono">-</span>
+                            | Total carved: <span id="realCarvingCount" class="text-green-400 font-bold">0</span>
+                        </p>
+                        <div id="realCarvingOutput"
+                             class="bg-black text-green-400 font-mono text-xs p-3 rounded h-28 overflow-y-auto border border-slate-700">
+                            <div class="text-slate-500"># ForenSync File Carver v1.0</div>
+                            <div class="text-slate-500"># Select an evidence file and click Carve</div>
+                        </div>
+                    </div>
+                    <div id="noCarvingPanel" class="">
+                        <div class="bg-black rounded h-28 flex items-center justify-center border border-slate-700">
+                            <p class="text-slate-500 text-xs text-center">Select an evidence item<br>and click Carve to run</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Case Creation Modal -->
+        <div id="caseModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-xl shadow-2xl p-6 w-96">
+                <h3 class="font-bold text-lg mb-4"><i class="fas fa-folder-plus mr-2 text-blue-600"></i>Create New Case</h3>
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-xs font-bold text-gray-600">Case Name *</label>
+                        <input type="text" id="newCaseName" class="w-full border rounded px-3 py-2 text-sm mt-1"
+                               placeholder="e.g. Cybercrime Investigation 2025">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-600">Description</label>
+                        <textarea id="newCaseDesc" class="w-full border rounded px-3 py-2 text-sm mt-1" rows="3"
+                                  placeholder="Brief description of the case..."></textarea>
+                    </div>
+                </div>
+                <div class="flex space-x-3 mt-4">
+                    <button onclick="createCase()"
+                            class="flex-1 bg-blue-600 text-white py-2 rounded-lg font-medium hover:bg-blue-700">
+                        Create Case
+                    </button>
+                    <button onclick="document.getElementById('caseModal').classList.add('hidden')"
+                            class="flex-1 border py-2 rounded-lg font-medium hover:bg-gray-50">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tool Selection Grid -->
+        <div class="mb-6">
+            <h2 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-toolbox mr-2"></i>Select Forensic Tool</h2>
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
+                
+
+                <!-- Foremost -->
+                <div onclick="selectTool('foremost')" class="tool-card bg-white p-4 rounded-lg shadow-sm text-center" id="tool-foremost">
+                    <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-2">
+                        <i class="fas fa-file-recovery text-green-600 text-xl"></i>
+                    </div>
+                    <h4 class="font-bold text-sm text-gray-800">Foremost</h4>
+                    <p class="text-xs text-gray-500 mt-1">File Carving (Headers)</p>
+                </div>
+
+                <!-- Scalpel -->
+                <div onclick="selectTool('scalpel')" class="tool-card bg-white p-4 rounded-lg shadow-sm text-center" id="tool-scalpel">
+                    <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mx-auto mb-2">
+                        <i class="fas fa-cut text-red-600 text-xl"></i>
+                    </div>
+                    <h4 class="font-bold text-sm text-gray-800">Scalpel</h4>
+                    <p class="text-xs text-gray-500 mt-1">Advanced File Carving</p>
+                </div>
+
+                <!-- PhotoRec -->
+                <div onclick="selectTool('photorec')" class="tool-card bg-white p-4 rounded-lg shadow-sm text-center" id="tool-photorec">
+                    <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center mx-auto mb-2">
+                        <i class="fas fa-images text-yellow-600 text-xl"></i>
+                    </div>
+                    <h4 class="font-bold text-sm text-gray-800">PhotoRec</h4>
+                    <p class="text-xs text-gray-500 mt-1">Photo/Media Recovery</p>
+                </div>
+
+
+                <!-- Bulk Extractor -->
+                <div onclick="selectTool('bulk_extractor')" class="tool-card bg-white p-4 rounded-lg shadow-sm text-center" id="tool-bulk_extractor">
+                    <div class="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center mx-auto mb-2">
+                        <i class="fas fa-bolt text-orange-600 text-xl"></i>
+                    </div>
+                    <h4 class="font-bold text-sm text-gray-800">Bulk Extractor</h4>
+                    <p class="text-xs text-gray-500 mt-1">PII & Pattern Extraction</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dynamic Tool Interface -->
+        <div id="toolInterface" class="hidden">
+            
+            <!-- FOREMOST INTERFACE -->
+            <div id="interface-foremost" class="hidden bg-white rounded-xl shadow-lg border overflow-hidden">
+                <div class="bg-green-600 px-6 py-3 flex justify-between items-center">
+                    <h3 class="text-white font-bold"><i class="fas fa-file-recovery mr-2"></i>Foremost - File Carving Tool</h3>
+                    <button onclick="runForemost()" class="bg-white text-green-600 px-4 py-1 rounded text-sm font-bold hover:bg-green-50">
+                        <i class="fas fa-play mr-1"></i>Start Carving
+                    </button>
+                </div>
+                <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-bold text-gray-700 mb-3">Configuration</h4>
+                        <div class="space-y-4 border rounded-lg p-4">
+                            <div>
+                                <label class="text-xs font-bold text-gray-600">Input File</label>
+                                <input type="text" id="foremostInput" class="w-full border rounded px-3 py-2 text-sm mt-1" placeholder="/evidence/disk_image.raw">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-gray-600">Output Directory</label>
+                                <input type="text" class="w-full border rounded px-3 py-2 text-sm mt-1" placeholder="/output/foremost_recovered/">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-gray-600">File Types to Recover</label>
+                                <div class="grid grid-cols-3 gap-2 mt-2">
+                                    <label class="flex items-center text-sm"><input type="checkbox" checked class="mr-1"> JPG</label>
+                                    <label class="flex items-center text-sm"><input type="checkbox" checked class="mr-1"> GIF</label>
+                                    <label class="flex items-center text-sm"><input type="checkbox" checked class="mr-1"> PNG</label>
+                                    <label class="flex items-center text-sm"><input type="checkbox" checked class="mr-1"> PDF</label>
+                                    <label class="flex items-center text-sm"><input type="checkbox" checked class="mr-1"> DOC</label>
+                                    <label class="flex items-center text-sm"><input type="checkbox" class="mr-1"> AVI</label>
+                                    <label class="flex items-center text-sm"><input type="checkbox" class="mr-1"> EXE</label>
+                                    <label class="flex items-center text-sm"><input type="checkbox" class="mr-1"> ZIP</label>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-4 text-sm">
+                                <label class="flex items-center"><input type="checkbox" class="mr-1"> Help (display help)</label>
+                                <label class="flex items-center"><input type="checkbox" checked class="mr-1"> Quiet (suppress output)</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-gray-700 mb-3">Recovery Progress</h4>
+                        <div id="foremostOutput" class="bg-gray-900 text-green-400 font-mono text-xs p-4 rounded-lg h-64 overflow-y-auto">
+                            <div class="text-gray-500"># Foremost v1.5.7 - File Carving Tool</div>
+                            <div class="text-gray-500"># Waiting to start...</div>
+                        </div>
+                        <div id="foremostStats" class="hidden mt-4 grid grid-cols-4 gap-2 text-center">
+                            <div class="bg-green-100 rounded p-2">
+                                <p class="text-2xl font-bold text-green-700" id="foremostJpg">0</p>
+                                <p class="text-xs text-green-600">JPG</p>
+                            </div>
+                            <div class="bg-blue-100 rounded p-2">
+                                <p class="text-2xl font-bold text-blue-700" id="foremostPdf">0</p>
+                                <p class="text-xs text-blue-600">PDF</p>
+                            </div>
+                            <div class="bg-purple-100 rounded p-2">
+                                <p class="text-2xl font-bold text-purple-700" id="foremostDoc">0</p>
+                                <p class="text-xs text-purple-600">DOC</p>
+                            </div>
+                            <div class="bg-orange-100 rounded p-2">
+                                <p class="text-2xl font-bold text-orange-700" id="foremostTotal">0</p>
+                                <p class="text-xs text-orange-600">Total</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SCALPEL INTERFACE -->
+            <div id="interface-scalpel" class="hidden bg-white rounded-xl shadow-lg border overflow-hidden">
+                <div class="bg-red-600 px-6 py-3 flex justify-between items-center">
+                    <h3 class="text-white font-bold"><i class="fas fa-cut mr-2"></i>Scalpel - Advanced File Carving</h3>
+                    <button onclick="runScalpel()" class="bg-white text-red-600 px-4 py-1 rounded text-sm font-bold hover:bg-red-50">
+                        <i class="fas fa-play mr-1"></i>Execute Scalpel
+                    </button>
+                </div>
+                <div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-1">
+                        <h4 class="font-bold text-gray-700 mb-3">Scalpel Configuration</h4>
+                        <div class="border rounded-lg p-4 space-y-3 text-sm">
+                            <div class="bg-yellow-50 border border-yellow-200 rounded p-2 text-xs">
+                                <i class="fas fa-exclamation-triangle text-yellow-600 mr-1"></i>
+                                Scalpel uses config file: /etc/scalpel/scalpel.conf
+                            </div>
+                            <div>
+                                <label class="font-bold text-xs">Image File</label>
+                                <input type="text" id="scalpelInput" class="w-full border rounded px-2 py-1 mt-1" placeholder="evidence.dd">
+                            </div>
+                            <div>
+                                <label class="font-bold text-xs">Output Directory</label>
+                                <input type="text" class="w-full border rounded px-2 py-1 mt-1" placeholder="scalpel-output/">
+                            </div>
+                            <div class="border-t pt-2">
+                                <p class="font-bold text-xs mb-2">Active File Types (from config):</p>
+                                <div class="space-y-1 text-xs font-mono bg-gray-100 p-2 rounded">
+                                    <div>gif y 1000000 \x47\x49\x46\x38 \x00\x3b</div>
+                                    <div>jpg y 2000000 \xff\xd8\xff\xe0 \xff\xd9</div>
+                                    <div>png y 5000000 \x89\x50\x4e\x47 \xae\x42\x60\x82</div>
+                                    <div>zip y 10000000 \x50\x4b\x03\x04 \x50\x4b</div>
+                                    <div>pdf y 5000000 \x25\x50\x44\x46 \x25\x25\x45\x4f\x46</div>
+                                </div>
+                            </div>
+                            <div class="flex items-center text-xs">
+                                <input type="checkbox" id="scalpelOverwrite" class="mr-1">
+                                <label for="scalpelOverwrite">Overwrite existing files (-o)</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="lg:col-span-2">
+                        <h4 class="font-bold text-gray-700 mb-3">Carving Console</h4>
+                        <div id="scalpelConsole" class="bg-gray-900 text-red-400 font-mono text-xs p-4 rounded-lg h-80 overflow-y-auto">
+                            <div class="text-gray-500"># Scalpel file carving tool</div>
+                            <div class="text-gray-500"># Reading configuration file...</div>
+                            <div class="text-gray-500"># Opening image...</div>
+                            <div class="text-gray-500"># Waiting for execution...</div>
+                        </div>
+                        <div id="scalpelResults" class="hidden mt-4">
+                            <h5 class="font-bold text-sm mb-2">Carved Files by Type</h5>
+                            <div class="grid grid-cols-5 gap-2" id="scalpelGrid"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PHOTOREC INTERFACE -->
+            <div id="interface-photorec" class="hidden bg-white rounded-xl shadow-lg border overflow-hidden">
+                <div class="bg-yellow-500 px-6 py-3 flex justify-between items-center">
+                    <h3 class="text-white font-bold"><i class="fas fa-images mr-2"></i>PhotoRec - Photo/Video Recovery</h3>
+                    <button onclick="runPhotoRec()" class="bg-white text-yellow-600 px-4 py-1 rounded text-sm font-bold hover:bg-yellow-50">
+                        <i class="fas fa-search mr-1"></i>Search & Recover
+                    </button>
+                </div>
+                <div class="p-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                        <div class="border rounded-lg p-4">
+                            <h4 class="font-bold text-gray-700 mb-3">Media Selection</h4>
+                            <div class="space-y-2">
+                                <div class="p-2 bg-gray-50 rounded cursor-pointer border-2 border-blue-500">
+                                    <i class="fas fa-hdd mr-2"></i>Disk /dev/sda - 500 GB
+                                </div>
+                                <div class="p-2 bg-gray-50 rounded cursor-pointer hover:bg-gray-100">
+                                    <i class="fas fa-sd-card mr-2"></i>SD Card /dev/sdb - 64 GB
+                                </div>
+                                <div class="p-2 bg-gray-50 rounded cursor-pointer hover:bg-gray-100">
+                                    <i class="fas fa-mobile-alt mr-2"></i>Phone /dev/sdc - 128 GB
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <label class="text-xs font-bold">Partition</label>
+                                <select class="w-full border rounded px-2 py-1 mt-1 text-sm">
+                                    <option>Whole disk (search all partitions)</option>
+                                    <option>Partition 1: FAT32 (58 GB)</option>
+                                    <option>Partition 2: exFAT (6 GB)</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="border rounded-lg p-4">
+                            <h4 class="font-bold text-gray-700 mb-3">File Opt</h4>
+                            <p class="text-xs text-gray-600 mb-2">Select file formats to recover:</p>
+                            <div class="h-32 overflow-y-auto space-y-1 text-sm border rounded p-2">
+                                <label class="flex items-center"><input type="checkbox" checked class="mr-2"> [.] JPEG (Joint Photographic)</label>
+                                <label class="flex items-center"><input type="checkbox" checked class="mr-2"> [.] TIFF (Tag Image File)</label>
+                                <label class="flex items-center"><input type="checkbox" checked class="mr-2"> [.] PNG (Portable Network Graphics)</label>
+                                <label class="flex items-center"><input type="checkbox" checked class="mr-2"> [.] RAW (Camera raw)</label>
+                                <label class="flex items-center"><input type="checkbox" checked class="mr-2"> [.] MP4 (MPEG-4 Video)</label>
+                                <label class="flex items-center"><input type="checkbox" checked class="mr-2"> [.] AVI (Audio Video Interleave)</label>
+                                <label class="flex items-center"><input type="checkbox" checked class="mr-2"> [.] MOV (QuickTime)</label>
+                                <label class="flex items-center"><input type="checkbox" class="mr-2"> [.] DOC (Microsoft Word)</label>
+                                <label class="flex items-center"><input type="checkbox" class="mr-2"> [.] XLS (Microsoft Excel)</label>
+                            </div>
+                            <div class="mt-2 flex space-x-2">
+                                <button class="text-xs bg-gray-200 px-2 py-1 rounded" onclick="toggleAllPhotoRec(true)">Select All</button>
+                                <button class="text-xs bg-gray-200 px-2 py-1 rounded" onclick="toggleAllPhotoRec(false)">Deselect All</button>
+                            </div>
+                        </div>
+
+                        <div class="border rounded-lg p-4">
+                            <h4 class="font-bold text-gray-700 mb-3">Options</h4>
+                            <div class="space-y-3 text-sm">
+                                <div>
+                                    <label class="font-bold text-xs">Search Mode</label>
+                                    <select class="w-full border rounded px-2 py-1 mt-1">
+                                        <option>Free (unallocated space only)</option>
+                                        <option>Whole (allocated and unallocated)</option>
+                                        <option>Ext2/Ext3/Ext4 superblock</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="font-bold text-xs">Destination</label>
+                                    <input type="text" class="w-full border rounded px-2 py-1 mt-1" placeholder="/recovery/photorec/">
+                                </div>
+                                <div class="flex items-center">
+                                    <input type="checkbox" checked class="mr-2">
+                                    <label class="text-xs">Paranoid mode (slower, safer)</label>
+                                </div>
+                                <div class="flex items-center">
+                                    <input type="checkbox" class="mr-2">
+                                    <label class="text-xs">Keep corrupted files</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PhotoRec Progress -->
+                    <div id="photorecProgress" class="hidden">
+                        <div class="bg-gray-900 rounded-lg p-4 text-green-400 font-mono text-sm mb-4">
+                            <div class="flex justify-between mb-2">
+                                <span>Pass 1/3 - Sector 145,234,567 of 976,773,168</span>
+                                <span id="photorecPercent">14%</span>
+                            </div>
+                            <div class="w-full bg-gray-700 rounded-full h-2 mb-2">
+                                <div id="photorecBar" class="bg-green-500 h-2 rounded-full progress-bar" style="width: 14%"></div>
+                            </div>
+                            <div class="flex justify-between text-xs text-gray-400">
+                                <span>Elapsed: 00:45:23</span>
+                                <span>ETA: 04:12:18</span>
+                                <span>Recovered: <span id="photorecCount">1,247</span> files</span>
+                            </div>
+                        </div>
+                        
+                        <div id="photorecGallery" class="evidence-grid">
+                            <!-- Thumbnails will appear here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BULK EXTRACTOR INTERFACE -->
+            <div id="interface-bulk_extractor" class="hidden bg-white rounded-xl shadow-lg border overflow-hidden">
+                <div class="bg-orange-600 px-6 py-3 flex justify-between items-center">
+                    <h3 class="text-white font-bold"><i class="fas fa-bolt mr-2"></i>Bulk Extractor - Pattern Recognition</h3>
+                    <button onclick="runBulkExtractor()" class="bg-white text-orange-600 px-4 py-1 rounded text-sm font-bold hover:bg-orange-50">
+                        <i class="fas fa-play mr-1"></i>Start Extraction
+                    </button>
+                </div>
+                <div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div>
+                        <h4 class="font-bold text-gray-700 mb-3">Scanners Configuration</h4>
+                        <div class="border rounded-lg p-4 space-y-2 text-sm">
+                            <div class="flex justify-between items-center p-2 bg-gray-50 rounded">
+                                <span><i class="fas fa-envelope mr-2 text-blue-500"></i>Email addresses</span>
+                                <input type="checkbox" checked class="scanner-toggle" data-scanner="email">
+                            </div>
+                            <div class="flex justify-between items-center p-2 bg-gray-50 rounded">
+                                <span><i class="fas fa-globe mr-2 text-green-500"></i>URLs</span>
+                                <input type="checkbox" checked class="scanner-toggle" data-scanner="url">
+                            </div>
+                            <div class="flex justify-between items-center p-2 bg-gray-50 rounded">
+                                <span><i class="fas fa-credit-card mr-2 text-red-500"></i>Credit card numbers</span>
+                                <input type="checkbox" checked class="scanner-toggle" data-scanner="ccn">
+                            </div>
+                            <div class="flex justify-between items-center p-2 bg-gray-50 rounded">
+                                <span><i class="fas fa-id-card mr-2 text-purple-500"></i>Social Security Numbers</span>
+                                <input type="checkbox" checked class="scanner-toggle" data-scanner="ssn">
+                            </div>
+                            <div class="flex justify-between items-center p-2 bg-gray-50 rounded">
+                                <span><i class="fas fa-phone mr-2 text-yellow-500"></i>Phone numbers</span>
+                                <input type="checkbox" checked class="scanner-toggle" data-scanner="phone">
+                            </div>
+                            <div class="flex justify-between items-center p-2 bg-gray-50 rounded">
+                                <span><i class="fas fa-key mr-2 text-gray-500"></i>Encryption keys</span>
+                                <input type="checkbox" class="scanner-toggle" data-scanner="keys">
+                            </div>
+                            <div class="flex justify-between items-center p-2 bg-gray-50 rounded">
+                                <span><i class="fas fa-file-code mr-2 text-orange-500"></i>Base64 strings</span>
+                                <input type="checkbox" checked class="scanner-toggle" data-scanner="base64">
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 border rounded-lg p-4">
+                            <h5 class="font-bold text-sm mb-2">Advanced Options</h5>
+                            <div class="space-y-2 text-sm">
+                                <div>
+                                    <label class="text-xs font-bold">Min file size</label>
+                                    <input type="text" class="w-full border rounded px-2 py-1" value="1MB">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-bold">Max recursion depth</label>
+                                    <input type="number" class="w-full border rounded px-2 py-1" value="5">
+                                </div>
+                                <div class="flex items-center">
+                                    <input type="checkbox" checked class="mr-2">
+                                    <label class="text-xs">Ignore compressed data</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="lg:col-span-2">
+                        <h4 class="font-bold text-gray-700 mb-3">Extraction Results</h4>
+                        <div id="bulkOutput" class="bg-gray-900 text-orange-400 font-mono text-xs p-4 rounded-lg h-64 overflow-y-auto mb-4">
+                            <div class="text-gray-500"># bulk_extractor version 2.0.0</div>
+                            <div class="text-gray-500"># Target: evidence.dd</div>
+                            <div class="text-gray-500"># Waiting to start...</div>
+                        </div>
+                        
+                        <div id="bulkResults" class="hidden">
+                            <div class="grid grid-cols-2 gap-4 mb-4">
+                                <div class="bg-red-50 border border-red-200 rounded p-3">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="font-bold text-red-700 text-sm"><i class="fas fa-credit-card mr-1"></i>Credit Cards</span>
+                                        <span class="text-2xl font-bold text-red-700" id="bulkCcn">0</span>
+                                    </div>
+                                    <div class="text-xs text-red-600 space-y-1" id="bulkCcnList"></div>
+                                </div>
+                                <div class="bg-blue-50 border border-blue-200 rounded p-3">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="font-bold text-blue-700 text-sm"><i class="fas fa-envelope mr-1"></i>Emails</span>
+                                        <span class="text-2xl font-bold text-blue-700" id="bulkEmail">0</span>
+                                    </div>
+                                    <div class="text-xs text-blue-600 space-y-1" id="bulkEmailList"></div>
+                                </div>
+                                <div class="bg-green-50 border border-green-200 rounded p-3">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="font-bold text-green-700 text-sm"><i class="fas fa-globe mr-1"></i>URLs</span>
+                                        <span class="text-2xl font-bold text-green-700" id="bulkUrl">0</span>
+                                    </div>
+                                    <div class="text-xs text-green-600 space-y-1" id="bulkUrlList"></div>
+                                </div>
+                                <div class="bg-purple-50 border border-purple-200 rounded p-3">
+                                    <div class="flex justify-between items-center mb-2">
+                                        <span class="font-bold text-purple-700 text-sm"><i class="fas fa-id-card mr-1"></i>SSN</span>
+                                        <span class="text-2xl font-bold text-purple-700" id="bulkSsn">0</span>
+                                    </div>
+                                    <div class="text-xs text-purple-600 space-y-1" id="bulkSsnList"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        </div>
+
+    <!-- Hex Dump Viewer Modal -->
+    <div id="hexModal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+        <div class="bg-slate-900 border border-slate-700 rounded-xl p-6 max-w-4xl w-full mx-4 shadow-2xl">
+            <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-terminal text-green-400 text-xl"></i>
+                    <h3 class="text-white font-bold text-lg" id="hexModalTitle">Interactive Hex Viewer</h3>
+                </div>
+                <button onclick="document.getElementById('hexModal').classList.add('hidden')" class="text-slate-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="hex-view p-4 rounded-lg overflow-x-auto max-h-96 text-xs leading-relaxed border border-slate-800" id="hexContainer">
+                Loading raw binary bytes...
+            </div>
+            <div class="mt-4 flex justify-between items-center text-xs text-slate-400">
+                <span id="hexMeta">Address offset: 0x00000000</span>
+                <button onclick="document.getElementById('hexModal').classList.add('hidden')" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-medium">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CTF Scenarios Modal -->
+    <div id="ctfModal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+        <div class="bg-slate-900 border border-slate-700 rounded-xl p-6 max-w-3xl w-full mx-4 shadow-2xl">
+            <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-flag text-yellow-400 text-xl"></i>
+                    <h3 class="text-white font-bold text-lg">Forensic CTF Challenges</h3>
+                    <span id="userCtfScore" class="text-xs bg-yellow-900/60 text-yellow-300 px-3 py-1 rounded font-bold border border-yellow-700">0 pts</span>
+                </div>
+                <button onclick="document.getElementById('ctfModal').classList.add('hidden')" class="text-slate-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="space-y-4 max-h-96 overflow-y-auto" id="ctfScenariosList">
+                <p class="text-slate-400 text-sm text-center py-4">Loading challenges...</p>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chain of Custody Audit Log Ledger Modal -->
+    <div id="auditLogModal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+        <div class="bg-slate-900 border border-slate-700 rounded-xl p-6 max-w-4xl w-full mx-4 shadow-2xl">
+            <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-shield-alt text-green-400 text-xl"></i>
+                    <h3 class="text-white font-bold text-lg">Chain of Custody Audit Ledger</h3>
+                </div>
+                <button onclick="document.getElementById('auditLogModal').classList.add('hidden')" class="text-slate-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="overflow-x-auto max-h-96 text-xs" id="auditLogContainer">
+                <p class="text-slate-400 text-center py-4">Loading audit logs...</p>
+            </div>
+            <div class="mt-4 pt-3 border-t border-slate-800 flex justify-between items-center text-xs text-slate-400">
+                <span>Cryptographic Audit Trail Active</span>
+                <button onclick="document.getElementById('auditLogModal').classList.add('hidden')" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg font-medium">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Format Selection Modal -->
+    <div id="reportExportModal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+        <div class="bg-slate-900 border border-slate-700 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
+            <div class="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-file-export text-blue-400 text-xl"></i>
+                    <h3 class="text-white font-bold text-lg">Export Forensic Report</h3>
+                </div>
+                <button onclick="document.getElementById('reportExportModal').classList.add('hidden')" class="text-slate-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <p class="text-slate-300 text-xs mb-4">Select your desired report format for export:</p>
+            <div class="space-y-3">
+                <button onclick="generateReportFormat('html')" class="w-full flex items-center justify-between p-3 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-globe text-blue-400 text-2xl"></i>
+                        <div class="text-left">
+                            <p class="text-white font-bold text-sm">HTML Web Report</p>
+                            <p class="text-slate-400 text-xs">Interactive browser report format</p>
+                        </div>
+                    </div>
+                    <i class="fas fa-download text-slate-400"></i>
+                </button>
+                <button onclick="generateReportFormat('pdf')" class="w-full flex items-center justify-between p-3 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-file-pdf text-red-400 text-2xl"></i>
+                        <div class="text-left">
+                            <p class="text-white font-bold text-sm">PDF Document (ReportLab)</p>
+                            <p class="text-slate-400 text-xs">Official printable court-ready document</p>
+                        </div>
+                    </div>
+                    <i class="fas fa-download text-slate-400"></i>
+                </button>
+                <button onclick="generateReportFormat('json')" class="w-full flex items-center justify-between p-3 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition">
+                    <div class="flex items-center space-x-3">
+                        <i class="fas fa-code text-green-400 text-2xl"></i>
+                        <div class="text-left">
+                            <p class="text-white font-bold text-sm">JSON Data Export</p>
+                            <p class="text-slate-400 text-xs">Structured raw JSON export for evidence tools</p>
+                        </div>
+                    </div>
+                    <i class="fas fa-download text-slate-400"></i>
+                </button>
+            </div>
+            <div class="mt-5 pt-3 border-t border-slate-800 flex justify-end">
+                <button onclick="document.getElementById('reportExportModal').classList.add('hidden')" class="bg-slate-800 hover:bg-slate-700 text-white px-4 py-2 rounded-lg text-xs font-medium">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTool = null;
+        let currentEvidence = null;
+        let stats = { cases: 0, evidence: 0, carved: 0, artifacts: 0, deleted: 0, keywords: 0 };
+        // Load real stats from backend — orchestrates /api/status, /api/cases, /api/evidence, /api/stats
+        async function loadDashboardStats() {
+            await Promise.all([
+                loadSystemStatus(),
+                loadCases(),
+                loadEvidenceList(window._selectedCaseId),
+                (async () => {
+                    try {
+                        const statsRes = await fetch('/api/stats');
+                        if (statsRes.ok) {
+                            const statsData = await statsRes.json();
+                            document.getElementById('statCarved').textContent = statsData.carved || 0;
+                        }
+                    } catch (e) {
+                        console.error('Failed to load carved stats:', e);
+                    }
+                })()
+            ]);
+        }
+
+        // Load current user
+        async function loadCurrentUser() {
+            try {
+                const res = await fetch('/api/auth/me');
+                const data = await res.json();
+                if (data.authenticated) {
+                    document.getElementById('currentUser').textContent = data.user.name;
+                }
+            } catch (e) {}
+        }
+
+        // Load system status from /api/status
+        async function loadSystemStatus() {
+            try {
+                const res = await fetch('/api/status');
+                if (res.ok) {
+                    const data = await res.json();
+                    console.log('ForenSync API status:', data.status, '| Version:', data.version);
+                }
+            } catch (e) {
+                console.error('System status unreachable:', e);
+            }
+        }
+
+        // Load cases from /api/cases — populates statCases and auto-selects active case
+        async function loadCases() {
+            try {
+                const res = await fetch('/api/cases');
+                if (!res.ok) return;
+                const data = await res.json();
+                const count = data.count || (data.cases ? data.cases.length : 0);
+                document.getElementById('statCases').textContent = count;
+
+                // Auto-select most recent case if none currently active
+                if (data.cases && data.cases.length > 0 && !window._selectedCaseId) {
+                    const first = data.cases[0];
+                    window._selectedCaseId = first.id;
+                    document.getElementById('activeCaseName').textContent = first.title || first.name || 'Untitled';
+                    document.getElementById('activeCaseNumber').textContent = first.case_number || '';
+                }
+            } catch (e) {
+                console.error('Failed to load cases:', e);
+            }
+        }
+
+        // Load recent evidence for the lower Load Evidence panel
+        async function loadRecentImages() {
+            try {
+                const res = await fetch('/api/evidence');
+                if (!res.ok) return;
+                const data = await res.json();
+                const container = document.getElementById('recentImages');
+                if (!container) return;
+                if (!data.evidence || data.evidence.length === 0) {
+                    container.innerHTML = '<p class="text-gray-400 text-sm text-center py-2">No recent evidence.</p>';
+                    return;
+                }
+                container.innerHTML = data.evidence.slice(0, 5).map(ev => `
+                    <div class="flex justify-between items-center p-2 bg-white rounded border">
+                        <div>
+                            <i class="fas fa-file mr-2 text-gray-500"></i>
+                            <span>${ev.original_filename}</span>
+                            <span class="text-xs text-gray-500 ml-2">${ev.file_size_human || formatBytes(ev.file_size || 0)}</span>
+                        </div>
+                        <button onclick="loadImage('${ev.original_filename}')" class="text-blue-600 hover:text-blue-800">
+                            <i class="fas fa-folder-open"></i>
+                        </button>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('Failed to load recent images:', e);
+            }
+        }
+
+        // Tool Selection
+        function selectTool(tool) {
+            currentTool = tool;
+            
+            // Hide all interfaces
+            document.querySelectorAll('[id^="interface-"]').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tool-card').forEach(el => el.classList.remove('selected'));
+            
+            // Show selected
+            document.getElementById('toolInterface').classList.remove('hidden');
+            document.getElementById('interface-' + tool).classList.remove('hidden');
+            document.getElementById('tool-' + tool).classList.add('selected');
+
+        }
+
+        async function exportReport() {
+            let caseId = window._selectedCaseId;
+            if (!caseId) {
+                try {
+                    const res = await fetch('/api/cases');
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.cases && data.cases.length > 0) {
+                            caseId = data.cases[0].id;
+                            window._selectedCaseId = caseId;
+                            document.getElementById('activeCaseName').textContent = data.cases[0].title || 'Active Case';
+                            document.getElementById('activeCaseNumber').textContent = data.cases[0].case_number || '';
+                        }
+                    }
+                } catch(e) {}
+            }
+
+            if (!caseId) {
+                alert('No active case found. Please click "+ New Case" to create your first case profile.');
+                return;
+            }
+
+            document.getElementById('reportExportModal').classList.remove('hidden');
+        }
+
+        async function generateReportFormat(fmt) {
+            const caseId = window._selectedCaseId;
+            if (!caseId) return;
+
+            document.getElementById('reportExportModal').classList.add('hidden');
+
+            let endpoint = '/api/cases/' + caseId + '/report';
+            if (fmt === 'pdf') endpoint += '/pdf';
+            if (fmt === 'json') endpoint += '/json';
+
+            try {
+                const res = await fetch(endpoint);
+                const data = await res.json();
+                if (data.success) {
+                    alert(`Forensic ${fmt.toUpperCase()} Report Generated Successfully!\nPath: ${data.report_path || data.pdf_path || 'reports/'}`);
+                } else {
+                    alert('Error generating report: ' + (data.error || 'Unknown error'));
+                }
+            } catch(e) {
+                alert('Request failed: ' + e.message);
+            }
+        }
+
+        async function resetWorkspace() {
+            if (!confirm('Are you sure you want to reset the workspace?\nThis will clear ALL cases, uploaded evidence files, and generated reports.')) {
+                return;
+            }
+            try {
+                const res = await fetch('/api/reset', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    alert('Workspace Reset Complete!\nAll cases, evidence, and reports have been wiped.');
+                    window._selectedCaseId = null;
+                    window._lastEvidenceId = null;
+                    window.location.reload();
+                } else {
+                    alert('Reset Error: ' + (data.error || 'Failed to reset workspace'));
+                }
+            } catch(e) {
+                alert('Reset Request Failed: ' + e.message);
+            }
+        }
+
+        // Foremost Functions
+        async function runForemost() {
+            const output = document.getElementById('foremostOutput');
+            const stats = document.getElementById('foremostStats');
+            const evId = window._lastEvidenceId;
+            
+            output.innerHTML = `<div class="text-gray-500"># Foremost v1.5.7 started at ${new Date().toLocaleString()}</div>`;
+            stats.classList.remove('hidden');
+
+            if (!evId) {
+                output.innerHTML += `<div class="text-yellow-400"># Warning: No uploaded evidence selected. Please upload an evidence file first.</div>`;
+                return;
+            }
+
+            output.innerHTML += `<div class="text-blue-400"># Analyzing uploaded evidence file: ID ${evId}...</div>`;
+
+            try {
+                const res = await fetch('/api/carve', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ evidence_id: evId })
+                });
+                const data = await res.json();
+                if (data.success && data.results && data.results.carved_files) {
+                    const files = data.results.carved_files;
+                    let jpg = 0, pdf = 0, doc = 0, total = files.length;
+                    files.forEach(f => {
+                        output.innerHTML += `<div class="carved-item text-green-400">* Carved ${f.type} file at byte offset ${f.offset_start}, size: ${f.size_human}</div>`;
+                        if (f.extension === '.jpg' || f.extension === '.png') jpg++;
+                        if (f.extension === '.pdf') pdf++;
+                        if (f.extension === '.doc' || f.extension === '.zip') doc++;
+                    });
+                    document.getElementById('foremostJpg').textContent = jpg;
+                    document.getElementById('foremostPdf').textContent = pdf;
+                    document.getElementById('foremostDoc').textContent = doc;
+                    document.getElementById('foremostTotal').textContent = total;
+                    output.innerHTML += `<div class="text-green-400 font-bold"># Foremost completed successfully. Total carved: ${total} files.</div>`;
+                    updateStat('carved', total);
+                } else {
+                    output.innerHTML += `<div class="text-yellow-400"># No carved signatures found in file.</div>`;
+                }
+            } catch(e) {
+                output.innerHTML += `<div class="text-red-400"># Error: ${e.message}</div>`;
+            }
+        }
+
+        // Scalpel Functions
+        async function runScalpel() {
+            const console = document.getElementById('scalpelConsole');
+            const results = document.getElementById('scalpelResults');
+            const grid = document.getElementById('scalpelGrid');
+            const evId = window._lastEvidenceId;
+
+            console.innerHTML = `<div class="text-gray-500"># Scalpel file carving tool v2.1</div>`;
+
+            if (!evId) {
+                console.innerHTML += `<div class="text-yellow-400"># Warning: Upload an evidence file first to run Scalpel carving.</div>`;
+                return;
+            }
+
+            console.innerHTML += `<div class="text-blue-400"># Executing Scalpel carver on target evidence ID: ${evId}...</div>`;
+            results.classList.remove('hidden');
+            grid.innerHTML = '';
+
+            try {
+                const res = await fetch('/api/carve', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ evidence_id: evId })
+                });
+                const data = await res.json();
+                if (data.success && data.results && data.results.carved_files) {
+                    data.results.carved_files.forEach(f => {
+                        console.innerHTML += `<div class="carved-item text-green-400">Carved: ${f.output_filename} (${f.size_human})</div>`;
+                        const div = document.createElement('div');
+                        div.className = `bg-green-100 text-green-700 rounded p-2 text-center carved-item cursor-pointer hover:opacity-80`;
+                        div.innerHTML = `<i class="fas fa-image text-2xl mb-1"></i><div class="text-xs font-mono">${f.output_filename}</div>`;
+                        grid.appendChild(div);
+                    });
+                }
+            } catch(e) {
+                console.innerHTML += `<div class="text-red-400"># Error executing Scalpel: ${e.message}</div>`;
+            }
+        }
+
+        // PhotoRec Functions
+        function toggleAllPhotoRec(checked) {
+            document.querySelectorAll('#interface-photorec input[type="checkbox"]').forEach(cb => cb.checked = checked);
+        }
+
+        async function runPhotoRec() {
+            const progress = document.getElementById('photorecProgress');
+            const gallery = document.getElementById('photorecGallery');
+            const bar = document.getElementById('photorecBar');
+            const percent = document.getElementById('photorecPercent');
+            const count = document.getElementById('photorecCount');
+            const evId = window._lastEvidenceId || currentEvidenceId;
+
+            progress.classList.remove('hidden');
+            gallery.innerHTML = '';
+
+            if (!evId) {
+                bar.style.width = '100%';
+                percent.textContent = '100%';
+                count.textContent = '0';
+                gallery.innerHTML = '<div class="col-span-full p-4 bg-yellow-900/40 text-yellow-300 text-xs rounded border border-yellow-700">⚠️ Please upload an evidence file first to run PhotoRec image recovery.</div>';
+                return;
+            }
+
+            bar.style.width = '50%';
+            percent.textContent = '50%';
+            count.textContent = 'Scanning...';
+
+            try {
+                const res = await fetch('/api/carve', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ evidence_id: evId, file_types: ['JPEG', 'PNG', 'BMP'] })
+                });
+                const data = await res.json();
+                
+                bar.style.width = '100%';
+                percent.textContent = '100%';
+
+                if (data.success && data.results && data.results.carved_files && data.results.carved_files.length > 0) {
+                    const files = data.results.carved_files;
+                    count.textContent = files.length.toString();
+                    
+                    files.forEach(f => {
+                        const div = document.createElement('div');
+                        div.className = 'carved-item bg-slate-800 border border-slate-700 rounded-lg p-2 text-center cursor-pointer hover:bg-slate-700 text-white';
+                        div.innerHTML = `<i class="fas fa-image text-cyan-400 text-3xl mb-1"></i><div class="text-[10px] font-mono truncate">${f.output_filename}</div><div class="text-[9px] text-slate-400">${f.size_human}</div>`;
+                        div.onclick = () => alert(`PhotoRec Carved File:\nFile: ${f.output_filename}\nOffset: 0x${f.offset_start.toString(16).toUpperCase()}\nSize: ${f.size_human}`);
+                        gallery.appendChild(div);
+                    });
+                    updateStat('carved', files.length);
+                } else {
+                    count.textContent = '0';
+                    gallery.innerHTML = '<div class="col-span-full p-4 bg-slate-800 text-slate-400 text-xs rounded border border-slate-700">No embedded JPEG/PNG/BMP image signatures detected in target file.</div>';
+                }
+            } catch(e) {
+                bar.style.width = '100%';
+                percent.textContent = 'Error';
+                gallery.innerHTML = `<div class="col-span-full p-4 bg-red-900/40 text-red-300 text-xs rounded border border-red-700">Error: ${e.message}</div>`;
+            }
+        }
+
+        // Bulk Extractor Functions — Executes real Browser Artifact Extractor plugin
+        async function runBulkExtractor() {
+            const output = document.getElementById('bulkOutput');
+            const results = document.getElementById('bulkResults');
+            const evId = window._lastEvidenceId || currentEvidenceId;
+            
+            output.innerHTML = `<div class="text-gray-500"># bulk_extractor / plugin runner v2.0</div>`;
+            
+            if (!evId) {
+                output.innerHTML += `<div class="text-yellow-400"># Warning: Upload an evidence file first to run Bulk Extractor.</div>`;
+                return;
+            }
+
+            output.innerHTML += `<div class="text-blue-400"># Executing Browser Artifact Extractor plugin on target evidence ID: ${evId}...</div>`;
+            results.classList.remove('hidden');
+
+            try {
+                const res = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        evidence_id: evId,
+                        plugin_name: 'Browser Artifact Extractor'
+                    })
+                });
+                const data = await res.json();
+                
+                if (data.success && data.results) {
+                    const resData = data.results;
+                    output.innerHTML += `<div class="text-green-400 font-bold"># Analysis Complete. Summary: ${JSON.stringify(resData.summary || {})}</div>`;
+                    
+                    let emailCount = 0, urlCount = 0;
+                    document.getElementById('bulkCcnList').innerHTML = '<div class="text-slate-400">No CCN patterns</div>';
+                    document.getElementById('bulkSsnList').innerHTML = '<div class="text-slate-400">No SSN patterns</div>';
+                    
+                    if (resData.browsers) {
+                        const urls = [];
+                        Object.keys(resData.browsers).forEach(b => {
+                            const bData = resData.browsers[b];
+                            if (bData.history) {
+                                bData.history.forEach(h => {
+                                    urls.push(h.url || h);
+                                    output.innerHTML += `<div class="carved-item text-green-400">URL Found (${b}): ${h.url || h}</div>`;
+                                });
+                            }
+                        });
+                        urlCount = urls.length;
+                    }
+
+                    document.getElementById('bulkUrl').textContent = urlCount;
+                    document.getElementById('bulkUrlList').innerHTML = urlCount > 0 ? 
+                        `<div class="text-green-600">${urlCount} browser URLs extracted</div>` : 
+                        '<div class="text-slate-400">No browser URLs in target</div>';
+                    
+                    updateStat('artifacts', urlCount);
+                } else {
+                    output.innerHTML += `<div class="text-yellow-400"># Plugin returned status: ${data.error || 'No patterns found'}</div>`;
+                }
+            } catch(e) {
+                output.innerHTML += `<div class="text-red-400"># Error: ${e.message}</div>`;
+            }
+        }
+
+        function addToList(countId, listId, item) {
+            const count = document.getElementById(countId);
+            const list = document.getElementById(listId);
+            count.textContent = parseInt(count.textContent) + 1;
+            if (list.children.length < 3) {
+                list.innerHTML += `<div>${item}</div>`;
+            }
+        }
+
+        // Utility Functions
+        // Track the currently selected evidence
+        let currentEvidenceId = null;
+
+        // Real upload function — POSTs to /api/upload
+        async function uploadEvidence(file) {
+            if (!file) return;
+
+            const dropZone = document.getElementById('dropZone');
+            const caseId = window._selectedCaseId || 'default';
+
+            // Show uploading state
+            dropZone.innerHTML = `
+                <i class="fas fa-spinner fa-spin text-5xl text-blue-400 mb-3"></i>
+                <p class="text-lg font-medium text-gray-700">Uploading ${file.name}...</p>
+                <p class="text-sm text-gray-500">${formatBytes(file.size)} — please wait</p>
+            `;
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('case_id', caseId);
+
+            try {
+                const res = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (res.status === 401) {
+                    alert('Session expired. Redirecting to login page...');
+                    window.location.href = '/login';
+                    return;
+                }
+
+                const contentType = res.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    alert('Session expired or server error. Redirecting to login...');
+                    window.location.href = '/login';
+                    return;
+                }
+
+                const data = await res.json();
+
+                if (data.success) {
+                    currentEvidenceId = data.evidence.id;
+                    window._lastEvidenceId = data.evidence.id;
+                    window._lastEvidence = data.evidence;
+
+                    dropZone.innerHTML = `
+                        <input type="file" id="fileInput" class="hidden" accept="*/*" onchange="uploadEvidence(this.files[0])">
+                        <i class="fas fa-check-circle text-4xl text-green-400 mb-2"></i>
+                        <p class="text-slate-200 text-sm font-medium truncate">${file.name}</p>
+                        <p class="text-xs text-green-400 mt-1">✓ Uploaded successfully | MD5: ${data.evidence.md5_hash}</p>
+                        <p class="text-[10px] text-slate-400 mt-1">Click to upload another evidence file</p>
+                    `;
+
+                    // Auto-populate inputs
+                    if (document.getElementById('ftkImagePath'))
+                        document.getElementById('ftkImagePath').value = `E:\\Cases\\Case001\\${file.name.replace(/\.[^/.]+$/, '')}.E01`;
+                    if (document.getElementById('foremostInput'))
+                        document.getElementById('foremostInput').value = file.name;
+                    if (document.getElementById('scalpelInput'))
+                        document.getElementById('scalpelInput').value = file.name;
+
+                    // Refresh stats
+                    loadDashboardStats();
+                    loadEvidenceList();
+                } else {
+                    dropZone.innerHTML = `
+                        <input type="file" id="fileInput" class="hidden" accept="*/*" onchange="uploadEvidence(this.files[0])">
+                        <i class="fas fa-exclamation-triangle text-4xl text-red-400 mb-2"></i>
+                        <p class="text-sm font-medium text-red-400">Upload failed</p>
+                        <p class="text-xs text-red-300">${data.error || 'Unknown error'}</p>
+                    `;
+                }
+            } catch (err) {
+                dropZone.innerHTML = `
+                    <input type="file" id="fileInput" class="hidden" accept="*/*" onchange="uploadEvidence(this.files[0])">
+                    <i class="fas fa-exclamation-triangle text-4xl text-red-400 mb-2"></i>
+                    <p class="text-sm font-medium text-red-400">Upload error</p>
+                    <p class="text-xs text-red-300">${err.message}</p>
+                `;
+            }
+        }
+
+        // Load evidence list for the real panel — wired to /api/evidence with optional case filter
+        async function loadEvidenceList(caseId) {
+            try {
+                let url = '/api/evidence';
+                if (caseId) url += '?case_id=' + encodeURIComponent(caseId);
+                const res = await fetch(url);
+                const data = await res.json();
+
+                // Update evidence stat card from live API response
+                const total = data.total || (data.evidence ? data.evidence.length : 0);
+                document.getElementById('statEvidence').textContent = total;
+
+                const container = document.getElementById('evidenceList');
+                if (!container) return;
+                if (!data.evidence || data.evidence.length === 0) {
+                    container.innerHTML = '<p class="text-gray-400 text-sm text-center py-4">No evidence uploaded yet.</p>';
+                    return;
+                }
+                container.innerHTML = data.evidence.map(ev => `
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border hover:border-blue-300 cursor-pointer"
+                         onclick="selectEvidence('${ev.id}', '${ev.original_filename}')">
+                        <div class="flex items-center space-x-3">
+                            <i class="fas fa-file text-blue-400 text-xl"></i>
+                            <div>
+                                <p class="font-medium text-sm text-gray-800">${ev.original_filename}</p>
+                                <p class="text-xs text-gray-500">${ev.file_size_human || formatBytes(ev.file_size || 0)} | MD5: ${(ev.md5_hash||'').substring(0,12)}...</p>
+                                <p class="text-xs text-gray-400">Uploaded: ${ev.uploaded_at ? ev.uploaded_at.substring(0,19) : 'Unknown'}</p>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-end space-y-1">
+                            <span class="text-xs px-2 py-1 rounded-full ${
+                                ev.analysis_status === 'completed'
+                                    ? 'bg-green-100 text-green-700'
+                                    : 'bg-yellow-100 text-yellow-700'
+                            }">${ev.analysis_status || 'pending'}</span>
+                            <div class="flex space-x-1">
+                                <button onclick="event.stopPropagation(); openHexViewer('${ev.id}', '${ev.original_filename}')"
+                                        class="text-xs bg-slate-700 text-green-400 px-2 py-1 rounded hover:bg-slate-800">
+                                    <i class="fas fa-terminal mr-1"></i>Hex
+                                </button>
+                                <button onclick="event.stopPropagation(); runRealCarving('${ev.id}')"
+                                        class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">
+                                    <i class="fas fa-cut mr-1"></i>Carve
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch(e) {
+                console.error('Failed to load evidence:', e);
+            }
+        }
+
+        async function openHexViewer(evidenceId, filename) {
+            document.getElementById('hexModal').classList.remove('hidden');
+            document.getElementById('hexModalTitle').textContent = 'Hex Viewer — ' + filename;
+            const container = document.getElementById('hexContainer');
+            container.innerHTML = 'Loading raw binary byte stream...';
+
+            try {
+                const res = await fetch(`/api/evidence/${evidenceId}/hex?length=512`);
+                const data = await res.json();
+                if (data.success) {
+                    container.innerHTML = data.hex_lines.map(line => `
+                        <div><span class="text-yellow-400 mr-3">${line.address}</span> <span class="text-green-400 mr-4">${line.hex}</span> <span class="text-cyan-300">|${line.ascii}|</span></div>
+                    `).join('');
+                    document.getElementById('hexMeta').textContent = `File Size: ${data.file_size} bytes | Rendered Bytes: 0 to ${data.length}`;
+                } else {
+                    container.innerHTML = `<span class="text-red-400">Failed to load hex stream: ${data.error}</span>`;
+                }
+            } catch(e) {
+                container.innerHTML = `<span class="text-red-400">Error: ${e.message}</span>`;
+            }
+        }
+
+        async function loadCtfScenarios() {
+            document.getElementById('ctfModal').classList.remove('hidden');
+            const listEl = document.getElementById('ctfScenariosList');
+            listEl.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">Loading challenges...</p>';
+
+            try {
+                const res = await fetch('/api/ctf/scenarios');
+                const data = await res.json();
+                if (data.success) {
+                    const scoreEl = document.getElementById('userCtfScore');
+                    if (scoreEl) scoreEl.textContent = (data.user_score || 0) + ' pts';
+                    
+                    let html = `
+                        <!-- Live Ranked Leaderboard Table -->
+                        <div class="mb-4 bg-slate-900 border border-slate-700 rounded-lg p-3">
+                            <h4 class="text-yellow-400 font-bold text-xs uppercase mb-2 flex items-center">
+                                <i class="fas fa-trophy mr-2 text-amber-400"></i> Live Investigator Leaderboard
+                            </h4>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-xs text-slate-300">
+                                    <thead class="bg-slate-800 text-slate-400 uppercase text-[9px] font-bold">
+                                        <tr>
+                                            <th class="p-1.5 text-center">Rank</th>
+                                            <th class="p-1.5 text-left">Investigator</th>
+                                            <th class="p-1.5 text-center">Badge</th>
+                                            <th class="p-1.5 text-right">Score</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-800">
+                                        ${(data.leaderboard || []).map(row => `
+                                            <tr class="hover:bg-slate-800/40">
+                                                <td class="p-1.5 text-center font-bold text-yellow-400">#${row.rank}</td>
+                                                <td class="p-1.5 font-medium text-white">${row.user}</td>
+                                                <td class="p-1.5 text-center font-mono text-[10px] text-cyan-300">${row.badges}</td>
+                                                <td class="p-1.5 text-right font-bold text-green-400">${row.score} pts</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Scenarios List -->
+                        <h4 class="text-white font-bold text-xs uppercase mb-2">Active Challenge Missions</h4>
+                    `;
+
+                    html += data.scenarios.map(sc => `
+                        <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 mb-3">
+                            <div class="flex justify-between items-center mb-2">
+                                <h4 class="text-white font-bold text-sm">${sc.title}</h4>
+                                <span class="text-xs px-2 py-1 bg-yellow-900 text-yellow-300 rounded font-bold">+${sc.points} pts</span>
+                            </div>
+                            <p class="text-slate-300 text-xs mb-2">${sc.description}</p>
+                            <p class="text-slate-400 text-xs italic mb-2">💡 Hint: ${sc.hint}</p>
+                            
+                            <div class="mb-3">
+                                <a href="/api/ctf/download/${sc.id}" target="_blank" class="inline-flex items-center text-xs bg-slate-700 hover:bg-slate-600 text-cyan-300 px-3 py-1 rounded border border-slate-600">
+                                    <i class="fas fa-download mr-1.5"></i> Download Challenge File (${sc.file_name})
+                                </a>
+                            </div>
+
+                            <div class="flex space-x-2">
+                                <input type="text" id="flag_${sc.id}" placeholder="FLAG{...}" class="bg-slate-900 border border-slate-700 text-white text-xs px-3 py-1.5 rounded flex-grow">
+                                <button onclick="submitCtfFlag('${sc.id}')" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-4 py-1.5 rounded font-medium">Submit Flag</button>
+                            </div>
+                        </div>
+                    `).join('');
+
+                    listEl.innerHTML = html;
+                }
+            } catch(e) {
+                listEl.innerHTML = `<p class="text-red-400 text-sm">Failed to load CTF scenarios: ${e.message}</p>`;
+            }
+        }
+
+        async function submitCtfFlag(scenarioId) {
+            const input = document.getElementById('flag_' + scenarioId);
+            const flag = input ? input.value.trim() : '';
+            if (!flag) { alert('Please enter a flag string.'); return; }
+            try {
+                const res = await fetch('/api/ctf/submit', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ scenario_id: scenarioId, flag: flag })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(data.message);
+                    loadCtfScenarios();
+                } else {
+                    alert(data.message || data.error);
+                }
+            } catch(e) { alert('Submission error: ' + e.message); }
+        }
+
+        async function loadAuditLogModal() {
+            document.getElementById('auditLogModal').classList.remove('hidden');
+            const container = document.getElementById('auditLogContainer');
+            container.innerHTML = '<p class="text-slate-400 text-center py-4">Loading audit logs...</p>';
+
+            try {
+                const res = await fetch('/api/audit-log');
+                const data = await res.json();
+                if (data.success && data.logs) {
+                    if (data.logs.length === 0) {
+                        container.innerHTML = '<p class="text-slate-400 text-center py-4">No audit log entries recorded yet.</p>';
+                        return;
+                    }
+                    container.innerHTML = `
+                        <table class="w-full text-left text-slate-300">
+                            <thead class="bg-slate-800 text-slate-400 uppercase text-[10px] font-bold">
+                                <tr>
+                                    <th class="p-2">Timestamp</th>
+                                    <th class="p-2">Examiner</th>
+                                    <th class="p-2">Action</th>
+                                    <th class="p-2">Resource</th>
+                                    <th class="p-2">IP Address</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800">
+                                ${data.logs.map(log => `
+                                    <tr class="hover:bg-slate-800/50">
+                                        <td class="p-2 font-mono text-slate-400">${log.timestamp ? log.timestamp.substring(0,19).replace('T', ' ') : ''}</td>
+                                        <td class="p-2 font-medium text-blue-300">${log.user || log.username || 'Forensic Examiner'}</td>
+                                        <td class="p-2 font-bold text-green-400">${log.action}</td>
+                                        <td class="p-2">${log.resource_type || ''} ${log.resource_id ? '(' + log.resource_id + ')' : ''}</td>
+                                        <td class="p-2 font-mono text-slate-400">${log.ip_address || '127.0.0.1'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                } else {
+                    container.innerHTML = `<p class="text-amber-400 text-center py-4">${data.error || 'Access restricted (Admin only)'}</p>`;
+                }
+            } catch(e) {
+                container.innerHTML = `<p class="text-red-400 text-center py-4">Error loading audit trail: ${e.message}</p>`;
+            }
+        }
+
+        function selectEvidence(id, name) {
+            currentEvidenceId = id;
+            document.querySelectorAll('#evidenceList > div').forEach(el => {
+                el.classList.remove('border-blue-500', 'bg-blue-50');
+            });
+            document.getElementById('selectedEvidenceName').textContent = name;
+            document.getElementById('carvingPanel').classList.remove('hidden');
+        }
+
+        // Run REAL file carving via the backend API
+        async function runRealCarving(evidenceId) {
+            const outputEl = document.getElementById('realCarvingOutput');
+            const countEl  = document.getElementById('realCarvingCount');
+            const panel    = document.getElementById('carvingPanel');
+
+            if (!evidenceId) evidenceId = currentEvidenceId;
+            if (!evidenceId) {
+                alert('Please select an evidence file first.');
+                return;
+            }
+
+            panel.classList.remove('hidden');
+            outputEl.innerHTML = '<div class="text-yellow-400">⏳ Starting ForenSync File Carver...</div>';
+            countEl.textContent = '0';
+
+            outputEl.innerHTML += '<div class="text-gray-400">Scanning with chunked 4MB sliding window...</div>';
+            outputEl.innerHTML += '<div class="text-gray-400">Signatures: JPEG FF D8 FF | PNG 89 50 4E 47 | PDF 25 50 44 46 | ZIP 50 4B 03 04...</div>';
+
+            try {
+                const res = await fetch('/api/carve', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ evidence_id: evidenceId })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    const results = data.results;
+                    const carved  = results.carved_files || [];
+                    const summary = results.summary || {};
+
+                    outputEl.innerHTML = '';
+                    outputEl.innerHTML += `<div class="text-green-400 font-bold">✓ Carving complete — ${results.files_scanned} file(s) scanned</div>`;
+                    outputEl.innerHTML += `<div class="text-gray-400">Bytes scanned: ${summary.total_bytes_scanned_human || '?'}</div>`;
+
+                    if (carved.length === 0) {
+                        outputEl.innerHTML += '<div class="text-yellow-400 mt-2">No embedded files found in this evidence.</div>';
+                        outputEl.innerHTML += '<div class="text-gray-400 text-xs">This is normal for plain text or data files with no embedded JPEG/PNG/PDF/ZIP signatures.</div>';
+                    } else {
+                        carved.forEach(f => {
+                            outputEl.innerHTML += `<div class="carved-item text-green-300">✓ Found ${f.type}: offset 0x${f.offset_start.toString(16).toUpperCase()} size=${f.size_human}</div>`;
+                        });
+                    }
+
+                    // Update type counts
+                    const byType = summary.carved_by_type || {};
+                    document.getElementById('carvedJpg').textContent = byType.JPEG || 0;
+                    document.getElementById('carvedPdf').textContent = byType.PDF  || 0;
+                    document.getElementById('carvedPng').textContent = byType.PNG  || 0;
+                    document.getElementById('carvedZip').textContent = (byType.ZIP || 0);
+                    countEl.textContent = carved.length;
+
+                    loadDashboardStats();
+                } else {
+                    outputEl.innerHTML = `<div class="text-red-400">✗ Error: ${data.error}</div>`;
+                }
+            } catch(e) {
+                outputEl.innerHTML = `<div class="text-red-400">✗ Request failed: ${e.message}</div>`;
+            }
+        }
+
+        // Create a new case via real API
+        async function createCase() {
+            const name = document.getElementById('newCaseName').value.trim();
+            const desc = document.getElementById('newCaseDesc').value.trim();
+            if (!name) { alert('Please enter a case name.'); return; }
+            try {
+                const res = await fetch('/api/cases', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ name, description: desc })
+                });
+
+                if (res.status === 401) {
+                    alert('Session expired. Redirecting to login page...');
+                    window.location.href = '/login';
+                    return;
+                }
+
+                const contentType = res.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    const text = await res.text();
+                    alert('Server returned non-JSON response. Session may have expired. Redirecting to login...');
+                    window.location.href = '/login';
+                    return;
+                }
+
+                const data = await res.json();
+                if (data.success) {
+                    window._selectedCaseId = data.case.id;
+                    document.getElementById('activeCaseName').textContent = data.case.title;
+                    document.getElementById('activeCaseNumber').textContent = data.case.case_number;
+                    document.getElementById('caseModal').classList.add('hidden');
+                    document.getElementById('newCaseName').value = '';
+                    document.getElementById('newCaseDesc').value = '';
+
+                    const caseErr = document.getElementById('case-error');
+                    if (caseErr) caseErr.style.display = 'none';
+                    const upForm = document.getElementById('upload-form');
+                    if (upForm) upForm.style.display = 'block';
+
+                    loadDashboardStats();
+                    loadEvidenceList(data.case.id);
+                    alert('Case created successfully: ' + data.case.case_number);
+                } else {
+                    alert('Error creating case: ' + data.error);
+                }
+            } catch(e) { alert('Error: ' + e.message); }
+        }
+
+        function loadImage(name) {
+            currentEvidence = name;
+            alert(`Loaded evidence image: ${name}\nFile system: NTFS\nSize: 500 GB\nHash verified.`);
+        }
+
+        function updateStat(key, increment) {
+            stats[key] += increment;
+            document.getElementById('stat' + key.charAt(0).toUpperCase() + key.slice(1)).textContent = stats[key];
+        }
+
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+
+        // exportReport is defined above to fetch real reports via /api/cases/<id>/report
+
+
+        // Initialize drag and drop
+        document.getElementById('dropZone').ondragover = (e) => { e.preventDefault(); e.currentTarget.classList.add('dragover'); };
+        document.getElementById('dropZone').ondragleave = (e) => { e.currentTarget.classList.remove('dragover'); };
+        document.getElementById('dropZone').ondrop = (e) => {
+            e.preventDefault();
+            e.currentTarget.classList.remove('dragover');
+            if (e.dataTransfer.files.length) uploadEvidence(e.dataTransfer.files[0]);
+        };
+        document.getElementById('dropZone').onclick = () => document.getElementById('fileInput').click();
+        // Run on page load — refresh all dashboard data grids from live APIs without reload
+        loadDashboardStats();
+        loadCurrentUser();
+        loadRecentImages();
+
+    </script>
+</body>
+</html>

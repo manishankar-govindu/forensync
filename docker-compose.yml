@@ -1,0 +1,16 @@
+services:
+  forensync:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: forensync_app
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./evidence:/app/evidence
+      - ./reports:/app/reports
+      - ./instance:/app/instance
+    environment:
+      - FLASK_ENV=production
+      - SECRET_KEY=your-secret-key-here
+    restart: unless-stopped
