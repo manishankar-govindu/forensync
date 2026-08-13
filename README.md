@@ -56,8 +56,10 @@ http://localhost:5000
 
 | Username | Password | Role |
 |---|---|---|
-| `admin` | `admin123` | Administrator |
-| `investigator` | `invest123` | Investigator |
+| `admin`        | `admin123`  | Administrator |
+| `investigator` | `invest123` | Investigator  |
+
+> ⚠️ **Warning:** Change default passwords before any non-local deployment.
 
 ---
 
