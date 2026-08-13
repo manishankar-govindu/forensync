@@ -68,30 +68,37 @@ http://localhost:5000
 ```
 forensync/
 ├── backend/
-│   ├── app.py              ← Flask application, all API routes
-│   ├── models.py           ← SQLAlchemy DB models (User, Case, Evidence, AuditLog)
+│   ├── app.py
+│   ├── models.py
 │   ├── core/
-│   │   ├── plugin_manager.py    ← Plugin auto-discovery and runner
-│   │   └── report_generator.py  ← HTML, PDF, JSON report generation
+│   │   ├── plugin_manager.py
+│   │   └── report_generator.py
 │   └── templates/
-│       ├── index.html      ← Main dashboard
-│       └── login.html      ← Login page
+│       ├── index.html
+│       └── login.html
 ├── plugins/
 │   ├── metadata/
-│   │   ├── exif_plugin.py  ← EXIF metadata + GPS extractor (images)
-│   │   └── hash_plugin.py  ← MD5/SHA1/SHA256/SHA512 + entropy calculator
+│   │   ├── exif_plugin.py
+│   │   └── hash_plugin.py
 │   ├── disk/
-│   │   └── carver_plugin.py ← File carving (JPEG, PNG, PDF, ZIP, GIF, BMP, MP3, EXE)
+│   │   └── carver_plugin.py
 │   └── network/
-│       └── browser_plugin.py ← Chrome, Edge, Brave, Firefox artifact extractor
-├── evidence/               ← Uploaded evidence files stored here
-├── reports/                ← Generated forensic reports stored here
-├── instance/
-│   └── forensync.db        ← SQLite database (auto-created on first run)
+│       └── browser_plugin.py
+├── scripts/
+├── templates/
 ├── tests/
-│   └── test_plugins.py     ← Plugin unit tests
+│   └── test_plugins.py
+├── instance/
+├── evidence/
+├── reports/
+├── .gitignore
+├── .dockerignore
+├── Dockerfile
+├── docker-compose.yml
 ├── requirements.txt
-└── start.py
+├── run.py
+├── start.py
+└── LICENSE.txt
 ```
 
 ---
