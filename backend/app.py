@@ -355,9 +355,7 @@ def upload_evidence():
         #     'uploaded_at': datetime.now().isoformat(),
         #     'status': 'uploaded'
         # }
-        
-        # evidence_store[evidence_id] = evidence_info
-        
+                
         # if case_id in cases:
         #     cases[case_id]['evidence'].append(evidence_id)
         
@@ -388,12 +386,8 @@ def list_evidence():
         "evidence": [e.to_dict() for e in items],
         "total": len(items)
     # if case_id:
-    #     case_evidence = [e for e in evidence_store.values() if e['case_id'] == case_id]
-    #     return jsonify({"evidence": case_evidence})
     
     # return jsonify({
-    #     "evidence": list(evidence_store.values()),
-    #     "total": len(evidence_store)
     })
 
 @app.route('/api/status')
