@@ -77,3 +77,4 @@ desktop.ini
 instance/forensync.db 
 evidence/* 
 reports/* 
+instance/tasks.json 
