@@ -78,3 +78,4 @@ instance/forensync.db
 evidence/* 
 reports/* 
 instance/tasks.json 
+backend/instance/forensync.db 
