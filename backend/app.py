@@ -341,30 +341,6 @@ def upload_evidence():
         })
         print("Uploaded: {0} by {1}".format(filename, session['username']))
         return jsonify({"success": True, "evidence": new_evidence.to_dict()}), 201
-        # evidence_id = str(uuid.uuid4())[:8]
-        
-        # evidence_info = {
-        #     'id': evidence_id,
-        #     'case_id': case_id,
-        #     'original_name': filename,
-        #     'stored_name': unique_name,
-        #     'path': file_path,
-        #     'size': file_size,
-        #     'md5': hash_md5.hexdigest(),
-        #     'uploaded_by': session.get('username'),
-        #     'uploaded_at': datetime.now().isoformat(),
-        #     'status': 'uploaded'
-        # }
-                
-        # if case_id in cases:
-        #     cases[case_id]['evidence'].append(evidence_id)
-        
-        # print(f"Uploaded: {filename} by {session['username']}")
-        
-        # return jsonify({
-        #     "success": True,
-        #     "evidence": evidence_info
-        # }), 201
         
     except Exception as e:
         return jsonify({
@@ -385,9 +361,6 @@ def list_evidence():
     return jsonify({
         "evidence": [e.to_dict() for e in items],
         "total": len(items)
-    # if case_id:
-    
-    # return jsonify({
     })
 
 @app.route('/api/status')
