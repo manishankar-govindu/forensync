@@ -132,7 +132,7 @@ class TestFileCarvingPlugin(unittest.TestCase):
         exe_carved = [c for c in result['carved_files'] if c['type'] == 'EXE']
         self.assertEqual(len(exe_carved), 0)
 
-    
+
     def setUp(self):
         from plugins.disk.carver_plugin import FileCarvingPlugin
         self.plugin = FileCarvingPlugin()

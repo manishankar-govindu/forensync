@@ -1,7 +1,6 @@
-# belkasoft_plugin.py - Belkasoft X Integration Plugin for ForenSync
-# Simulates Belkasoft X forensic analysis: email extraction, chat history recovery,
-# web artifacts, cloud services, mobile messaging (WhatsApp, Telegram, Signal),
-# and instant messaging platform data extraction.
+# network_artifact_plugin.py - Network & Communication Artifact Analyzer Plugin for ForenSync
+# Provides forensic analysis: email extraction, communication artifact parsing,
+# and web/cloud artifact extraction.
 
 import os
 import sys
@@ -12,15 +11,15 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 from backend.core.plugin_manager import ForensicPlugin
 
 
-class BelkasoftXPlugin(ForensicPlugin):
+class NetworkArtifactPlugin(ForensicPlugin):
 
     @property
     def name(self):
-        return "Belkasoft X Analyzer"
+        return "Network & Communication Analyzer"
 
     @property
     def description(self):
-        return "Integrates Belkasoft X analysis: extracts email, chat history, web artifacts, cloud services, mobile messaging (WhatsApp, Telegram, Signal), browser history, and instant messaging data."
+        return "Extracts network and communication artifacts: email headers, web artifacts, cloud session records, and instant messaging database tables."
 
     @property
     def version(self):
@@ -104,7 +103,7 @@ class BelkasoftXPlugin(ForensicPlugin):
         # Save report
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
-            report_file = os.path.join(output_dir, f"belkasoft_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+            report_file = os.path.join(output_dir, f"network_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
             with open(report_file, 'w', encoding='utf-8') as rf:
                 json.dump(results, rf, indent=2, default=str)
             results['report_file'] = report_file
@@ -128,7 +127,7 @@ class BelkasoftXPlugin(ForensicPlugin):
                 'to': 'victim@gmail.com',
                 'date': '2026-07-15 09:15:00',
                 'subject': 'Your data has been compromised',
-                'body_preview': 'FLAG{BELKASOFT_EMAIL_EXTRACTED_EVIDENCE}',
+                'body_preview': 'FLAG{NETWORK_EMAIL_EXTRACTED_EVIDENCE}',
                 'provider': 'Gmail',
                 'status': 'Unread',
                 'attachments': ['ransom_note.txt', 'proof.zip']

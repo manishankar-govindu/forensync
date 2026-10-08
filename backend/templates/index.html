@@ -30,7 +30,7 @@
 <base target="_blank">
 </head>
 <body class="bg-gray-100 min-h-screen">
-    
+
     <!-- Navigation -->
     <nav class="bg-slate-900 text-white shadow-lg">
         <div class="container mx-auto px-6 py-4">
@@ -65,7 +65,7 @@
 
     <!-- Main Content -->
     <div class="container mx-auto px-6 py-6">
-        
+
         <!-- Stats Dashboard -->
         <div class="grid grid-cols-1 md:grid-cols-6 gap-4 mb-6">
             <div class="bg-white rounded-lg shadow-sm p-4 border-l-4 border-blue-500">
@@ -224,7 +224,7 @@
         <div class="mb-6">
             <h2 class="text-lg font-bold text-gray-800 mb-4"><i class="fas fa-toolbox mr-2"></i>Select Forensic Tool</h2>
             <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-                
+
 
                 <!-- Foremost -->
                 <div onclick="selectTool('foremost')" class="tool-card bg-white p-4 rounded-lg shadow-sm text-center" id="tool-foremost">
@@ -267,7 +267,7 @@
 
         <!-- Dynamic Tool Interface -->
         <div id="toolInterface" class="hidden">
-            
+
             <!-- FOREMOST INTERFACE -->
             <div id="interface-foremost" class="hidden bg-white rounded-xl shadow-lg border overflow-hidden">
                 <div class="bg-green-600 px-6 py-3 flex justify-between items-center">
@@ -423,7 +423,7 @@
                                 </select>
                             </div>
                         </div>
-                        
+
                         <div class="border rounded-lg p-4">
                             <h4 class="font-bold text-gray-700 mb-3">File Opt</h4>
                             <p class="text-xs text-gray-600 mb-2">Select file formats to recover:</p>
@@ -487,7 +487,7 @@
                                 <span>Recovered: <span id="photorecCount">1,247</span> files</span>
                             </div>
                         </div>
-                        
+
                         <div id="photorecGallery" class="evidence-grid">
                             <!-- Thumbnails will appear here -->
                         </div>
@@ -536,7 +536,7 @@
                                 <input type="checkbox" checked class="scanner-toggle" data-scanner="base64">
                             </div>
                         </div>
-                        
+
                         <div class="mt-4 border rounded-lg p-4">
                             <h5 class="font-bold text-sm mb-2">Advanced Options</h5>
                             <div class="space-y-2 text-sm">
@@ -555,7 +555,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="lg:col-span-2">
                         <h4 class="font-bold text-gray-700 mb-3">Extraction Results</h4>
                         <div id="bulkOutput" class="bg-gray-900 text-orange-400 font-mono text-xs p-4 rounded-lg h-64 overflow-y-auto mb-4">
@@ -563,7 +563,7 @@
                             <div class="text-gray-500"># Target: evidence.dd</div>
                             <div class="text-gray-500"># Waiting to start...</div>
                         </div>
-                        
+
                         <div id="bulkResults" class="hidden">
                             <div class="grid grid-cols-2 gap-4 mb-4">
                                 <div class="bg-red-50 border border-red-200 rounded p-3">
@@ -820,11 +820,11 @@
         // Tool Selection
         function selectTool(tool) {
             currentTool = tool;
-            
+
             // Hide all interfaces
             document.querySelectorAll('[id^="interface-"]').forEach(el => el.classList.add('hidden'));
             document.querySelectorAll('.tool-card').forEach(el => el.classList.remove('selected'));
-            
+
             // Show selected
             document.getElementById('toolInterface').classList.remove('hidden');
             document.getElementById('interface-' + tool).classList.remove('hidden');
@@ -904,13 +904,13 @@
         async function runForemost() {
             const output = document.getElementById('foremostOutput');
             const stats = document.getElementById('foremostStats');
-            const evId = window._lastEvidenceId;
-            
+            const evId = window._lastEvidenceId || currentEvidenceId;
+
             output.innerHTML = `<div class="text-gray-500"># Foremost v1.5.7 started at ${new Date().toLocaleString()}</div>`;
             stats.classList.remove('hidden');
 
             if (!evId) {
-                output.innerHTML += `<div class="text-yellow-400"># Warning: No uploaded evidence selected. Please upload an evidence file first.</div>`;
+                output.innerHTML += `<div class="text-yellow-400"># Warning: No uploaded evidence selected. Please upload or select an evidence file first.</div>`;
                 return;
             }
 
@@ -927,10 +927,10 @@
                     const files = data.results.carved_files;
                     let jpg = 0, pdf = 0, doc = 0, total = files.length;
                     files.forEach(f => {
-                        output.innerHTML += `<div class="carved-item text-green-400">* Carved ${f.type} file at byte offset ${f.offset_start}, size: ${f.size_human}</div>`;
-                        if (f.extension === '.jpg' || f.extension === '.png') jpg++;
-                        if (f.extension === '.pdf') pdf++;
-                        if (f.extension === '.doc' || f.extension === '.zip') doc++;
+                        output.innerHTML += `<div class="carved-item text-green-400">* Carved ${f.type} file at byte offset 0x${f.offset_start.toString(16).toUpperCase()}, size: ${f.size_human}</div>`;
+                        if (f.extension === '.jpg' || f.extension === '.jpeg') jpg++;
+                        else if (f.extension === '.pdf') pdf++;
+                        else if (f.extension === '.doc' || f.extension === '.docx' || f.extension === '.zip') doc++;
                     });
                     document.getElementById('foremostJpg').textContent = jpg;
                     document.getElementById('foremostPdf').textContent = pdf;
@@ -939,6 +939,10 @@
                     output.innerHTML += `<div class="text-green-400 font-bold"># Foremost completed successfully. Total carved: ${total} files.</div>`;
                     updateStat('carved', total);
                 } else {
+                    document.getElementById('foremostJpg').textContent = 0;
+                    document.getElementById('foremostPdf').textContent = 0;
+                    document.getElementById('foremostDoc').textContent = 0;
+                    document.getElementById('foremostTotal').textContent = 0;
                     output.innerHTML += `<div class="text-yellow-400"># No carved signatures found in file.</div>`;
                 }
             } catch(e) {
@@ -951,12 +955,12 @@
             const console = document.getElementById('scalpelConsole');
             const results = document.getElementById('scalpelResults');
             const grid = document.getElementById('scalpelGrid');
-            const evId = window._lastEvidenceId;
+            const evId = window._lastEvidenceId || currentEvidenceId;
 
             console.innerHTML = `<div class="text-gray-500"># Scalpel file carving tool v2.1</div>`;
 
             if (!evId) {
-                console.innerHTML += `<div class="text-yellow-400"># Warning: Upload an evidence file first to run Scalpel carving.</div>`;
+                console.innerHTML += `<div class="text-yellow-400"># Warning: Upload or select an evidence file first to run Scalpel carving.</div>`;
                 return;
             }
 
@@ -972,13 +976,21 @@
                 });
                 const data = await res.json();
                 if (data.success && data.results && data.results.carved_files) {
-                    data.results.carved_files.forEach(f => {
-                        console.innerHTML += `<div class="carved-item text-green-400">Carved: ${f.output_filename} (${f.size_human})</div>`;
-                        const div = document.createElement('div');
-                        div.className = `bg-green-100 text-green-700 rounded p-2 text-center carved-item cursor-pointer hover:opacity-80`;
-                        div.innerHTML = `<i class="fas fa-image text-2xl mb-1"></i><div class="text-xs font-mono">${f.output_filename}</div>`;
-                        grid.appendChild(div);
-                    });
+                    const files = data.results.carved_files;
+                    if (files.length === 0) {
+                        console.innerHTML += `<div class="text-yellow-400"># Scalpel scan complete: 0 files carved. No embedded signatures found.</div>`;
+                    } else {
+                        files.forEach(f => {
+                            console.innerHTML += `<div class="carved-item text-green-400">Carved: ${f.output_filename} (${f.size_human})</div>`;
+                            const div = document.createElement('div');
+                            div.className = `bg-green-100 text-green-700 rounded p-2 text-center carved-item cursor-pointer hover:opacity-80`;
+                            div.innerHTML = `<i class="fas fa-file text-2xl mb-1"></i><div class="text-xs font-mono">${f.output_filename}</div><div class="text-[10px] text-gray-500">${f.size_human}</div>`;
+                            grid.appendChild(div);
+                        });
+                        console.innerHTML += `<div class="text-green-400 font-bold"># Scalpel finished: ${files.length} carved file(s) extracted.</div>`;
+                    }
+                } else {
+                    console.innerHTML += `<div class="text-yellow-400"># Scalpel scan complete: No artifacts found.</div>`;
                 }
             } catch(e) {
                 console.innerHTML += `<div class="text-red-400"># Error executing Scalpel: ${e.message}</div>`;
@@ -1020,14 +1032,14 @@
                     body: JSON.stringify({ evidence_id: evId, file_types: ['JPEG', 'PNG', 'BMP'] })
                 });
                 const data = await res.json();
-                
+
                 bar.style.width = '100%';
                 percent.textContent = '100%';
 
                 if (data.success && data.results && data.results.carved_files && data.results.carved_files.length > 0) {
                     const files = data.results.carved_files;
                     count.textContent = files.length.toString();
-                    
+
                     files.forEach(f => {
                         const div = document.createElement('div');
                         div.className = 'carved-item bg-slate-800 border border-slate-700 rounded-lg p-2 text-center cursor-pointer hover:bg-slate-700 text-white';
@@ -1052,9 +1064,9 @@
             const output = document.getElementById('bulkOutput');
             const results = document.getElementById('bulkResults');
             const evId = window._lastEvidenceId || currentEvidenceId;
-            
+
             output.innerHTML = `<div class="text-gray-500"># bulk_extractor / plugin runner v2.0</div>`;
-            
+
             if (!evId) {
                 output.innerHTML += `<div class="text-yellow-400"># Warning: Upload an evidence file first to run Bulk Extractor.</div>`;
                 return;
@@ -1073,15 +1085,15 @@
                     })
                 });
                 const data = await res.json();
-                
+
                 if (data.success && data.results) {
                     const resData = data.results;
                     output.innerHTML += `<div class="text-green-400 font-bold"># Analysis Complete. Summary: ${JSON.stringify(resData.summary || {})}</div>`;
-                    
+
                     let emailCount = 0, urlCount = 0;
                     document.getElementById('bulkCcnList').innerHTML = '<div class="text-slate-400">No CCN patterns</div>';
                     document.getElementById('bulkSsnList').innerHTML = '<div class="text-slate-400">No SSN patterns</div>';
-                    
+
                     if (resData.browsers) {
                         const urls = [];
                         Object.keys(resData.browsers).forEach(b => {
@@ -1097,10 +1109,10 @@
                     }
 
                     document.getElementById('bulkUrl').textContent = urlCount;
-                    document.getElementById('bulkUrlList').innerHTML = urlCount > 0 ? 
-                        `<div class="text-green-600">${urlCount} browser URLs extracted</div>` : 
+                    document.getElementById('bulkUrlList').innerHTML = urlCount > 0 ?
+                        `<div class="text-green-600">${urlCount} browser URLs extracted</div>` :
                         '<div class="text-slate-400">No browser URLs in target</div>';
-                    
+
                     updateStat('artifacts', urlCount);
                 } else {
                     output.innerHTML += `<div class="text-yellow-400"># Plugin returned status: ${data.error || 'No patterns found'}</div>`;
@@ -1175,9 +1187,7 @@
                         <p class="text-[10px] text-slate-400 mt-1">Click to upload another evidence file</p>
                     `;
 
-                    // Auto-populate inputs
-                    if (document.getElementById('ftkImagePath'))
-                        document.getElementById('ftkImagePath').value = `E:\\Cases\\Case001\\${file.name.replace(/\.[^/.]+$/, '')}.E01`;
+                    // Auto-populate active tool inputs with uploaded filename
                     if (document.getElementById('foremostInput'))
                         document.getElementById('foremostInput').value = file.name;
                     if (document.getElementById('scalpelInput'))
@@ -1290,7 +1300,7 @@
                 if (data.success) {
                     const scoreEl = document.getElementById('userCtfScore');
                     if (scoreEl) scoreEl.textContent = (data.user_score || 0) + ' pts';
-                    
+
                     let html = `
                         <!-- Live Ranked Leaderboard Table -->
                         <div class="mb-4 bg-slate-900 border border-slate-700 rounded-lg p-3">
@@ -1333,7 +1343,7 @@
                             </div>
                             <p class="text-slate-300 text-xs mb-2">${sc.description}</p>
                             <p class="text-slate-400 text-xs italic mb-2">💡 Hint: ${sc.hint}</p>
-                            
+
                             <div class="mb-3">
                                 <a href="/api/ctf/download/${sc.id}" target="_blank" class="inline-flex items-center text-xs bg-slate-700 hover:bg-slate-600 text-cyan-300 px-3 py-1 rounded border border-slate-600">
                                     <i class="fas fa-download mr-1.5"></i> Download Challenge File (${sc.file_name})
@@ -1421,6 +1431,9 @@
 
         function selectEvidence(id, name) {
             currentEvidenceId = id;
+            window._lastEvidenceId = id;
+            if (document.getElementById('foremostInput')) document.getElementById('foremostInput').value = name;
+            if (document.getElementById('scalpelInput')) document.getElementById('scalpelInput').value = name;
             document.querySelectorAll('#evidenceList > div').forEach(el => {
                 el.classList.remove('border-blue-500', 'bg-blue-50');
             });

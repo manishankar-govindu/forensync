@@ -19,7 +19,7 @@
     </style>
 </head>
 <body class="login-bg flex items-center justify-center">
-    
+
     <div class="w-full max-w-md p-8">
         <!-- Logo -->
         <div class="text-center mb-8">
@@ -33,7 +33,7 @@
         <!-- Login Form -->
         <div class="glass-panel rounded-2xl p-8 shadow-2xl">
             <h2 class="text-xl font-semibold text-white mb-6 text-center">Sign In</h2>
-            
+
             {% if error %}
             <div class="mb-4 p-3 bg-red-500/20 text-red-300 border border-red-500/30 rounded-lg text-sm">
                 <i class="fas fa-exclamation-circle mr-2"></i>{{ error }}
@@ -47,7 +47,7 @@
                         <span class="absolute left-3 top-3 text-slate-400">
                             <i class="fas fa-user"></i>
                         </span>
-                        <input type="text" name="username" required 
+                        <input type="text" name="username" required
                             class="w-full bg-slate-800/50 border border-slate-600 rounded-lg py-2.5 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
                             placeholder="Enter username">
                     </div>
@@ -59,13 +59,13 @@
                         <span class="absolute left-3 top-3 text-slate-400">
                             <i class="fas fa-lock"></i>
                         </span>
-                        <input type="password" name="password" required 
+                        <input type="password" name="password" required
                             class="w-full bg-slate-800/50 border border-slate-600 rounded-lg py-2.5 pl-10 pr-4 text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
                             placeholder="Enter password">
                     </div>
                 </div>
 
-                <button type="submit" 
+                <button type="submit"
                     class="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-2.5 rounded-lg transition shadow-lg">
                     <i class="fas fa-sign-in-alt mr-2"></i>Sign In
                 </button>

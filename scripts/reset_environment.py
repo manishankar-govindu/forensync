@@ -16,7 +16,7 @@ def reset_all():
         try:
             conn = sqlite3.connect(DB_PATH)
             cursor = conn.cursor()
-            
+
             # Wipe table records
             cursor.execute("DELETE FROM evidence;")
             cursor.execute("DELETE FROM cases;")

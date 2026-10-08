@@ -14,19 +14,19 @@ class HashVerifierPlugin(ForensicPlugin):
     Calculates and verifies multiple hash types for forensic integrity.
     Supports MD5, SHA1, SHA256, SHA512.
     """
-    
+
     @property
     def name(self):
         return "Hash Verifier"
-    
+
     @property
     def description(self):
         return "Calculates MD5, SHA1, SHA256, SHA512 hashes for file integrity verification"
-    
+
     @property
     def version(self):
         return "1.0.0"
-    
+
     def supported_types(self):
         # Supports all file types
         return ['.*']
@@ -38,7 +38,7 @@ class HashVerifierPlugin(ForensicPlugin):
         if os.path.isdir(file_path):
             return False, "Path is a directory, not a file"
         return True, "Valid"
-    
+
     def analyze(self, file_path, output_dir=None, **kwargs):
         """
         Calculate multiple hashes for a file
@@ -49,7 +49,7 @@ class HashVerifierPlugin(ForensicPlugin):
             'verification': None,
             'entropy': None
         }
-        
+
         # File information
         file_stats = os.stat(file_path)
         results['file_info'] = {
@@ -58,7 +58,7 @@ class HashVerifierPlugin(ForensicPlugin):
             'size_bytes': file_stats.st_size,
             'size_human': self._format_bytes(file_stats.st_size)
         }
-        
+
         # Calculate hashes
         hash_algorithms = {
             'md5': hashlib.md5(),
@@ -66,9 +66,9 @@ class HashVerifierPlugin(ForensicPlugin):
             'sha256': hashlib.sha256(),
             'sha512': hashlib.sha512()
         }
-        
+
         print(f"Calculating hashes for: {os.path.basename(file_path)}")
-        
+
         # Read file and update all hashes simultaneously
         bytes_read = 0
         with open(file_path, 'rb') as f:
@@ -76,28 +76,28 @@ class HashVerifierPlugin(ForensicPlugin):
                 chunk = f.read(8192)  # Read in 8KB chunks
                 if not chunk:
                     break
-                
+
                 for hash_obj in hash_algorithms.values():
                     hash_obj.update(chunk)
-                
+
                 bytes_read += len(chunk)
-                
+
                 # Progress indicator for large files
                 if bytes_read % (10 * 1024 * 1024) == 0:  # Every 10MB
                     print(f"  Processed: {self._format_bytes(bytes_read)}")
-        
+
         # Get hex digests
         for name, hash_obj in hash_algorithms.items():
             results['hashes'][name] = hash_obj.hexdigest()
-        
+
         # Calculate file entropy (randomness indicator)
         results['entropy'] = self._calculate_entropy(file_path)
-        
+
         # If user provided expected hash, verify it
         expected_hash = kwargs.get('expected_hash')
         if expected_hash:
             results['verification'] = self._verify_hash(results['hashes'], expected_hash)
-        
+
         # Save results
         if output_dir:
             os.makedirs(output_dir, exist_ok=True)
@@ -108,9 +108,9 @@ class HashVerifierPlugin(ForensicPlugin):
             with open(output_file, 'w') as f:
                 json.dump(results, f, indent=2)
             results['output_file'] = output_file
-        
+
         return results
-    
+
     def _calculate_entropy(self, file_path):
         """
         Calculate Shannon entropy of file (0-8 scale).
@@ -138,11 +138,11 @@ class HashVerifierPlugin(ForensicPlugin):
 
         except Exception as e:
             return 'Error: {0}'.format(str(e))
-    
+
     def _verify_hash(self, calculated_hashes, expected_hash):
         """Verify if expected hash matches any calculated hash"""
         expected = expected_hash.lower().strip()
-        
+
         for hash_type, hash_value in calculated_hashes.items():
             if hash_value.lower() == expected:
                 return {
@@ -150,13 +150,13 @@ class HashVerifierPlugin(ForensicPlugin):
                     'matched_algorithm': hash_type,
                     'message': f'Hash verified using {hash_type.upper()}'
                 }
-        
+
         return {
             'match': False,
             'message': 'No matching hash found. File may be corrupted or tampered with.',
             'suspicious': True
         }
-    
+
     def _format_bytes(self, size):
         """Convert bytes to human readable format"""
         for unit in ['B', 'KB', 'MB', 'GB', 'TB']:

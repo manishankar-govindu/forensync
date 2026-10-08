@@ -1,16 +1,15 @@
-# models.py - Database models for ForenSync
-
+import os
+import uuid
+from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
-import uuid
 
 db = SQLAlchemy()
 
 class User(db.Model):
     """User accounts for investigators"""
     __tablename__ = 'users'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
@@ -21,21 +20,21 @@ class User(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime)
-    
+
     # Relationships
     cases = db.relationship('Case', backref='investigator', lazy=True)
-    
+
     def set_password(self, password):
         """Hash and store password"""
         self.password_hash = generate_password_hash(password, method='pbkdf2:sha256')
-    
+
     def check_password(self, password):
         """Verify password against hash"""
         return check_password_hash(self.password_hash, password)
-    
+
     def is_admin(self):
         return self.role == 'admin'
-    
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -52,7 +51,7 @@ class User(db.Model):
 class Case(db.Model):
     """Forensic investigation cases"""
     __tablename__ = 'cases'
-    
+
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     case_number = db.Column(db.String(50), unique=True, nullable=False)
     title = db.Column(db.String(200), nullable=False)
@@ -60,18 +59,18 @@ class Case(db.Model):
     case_type = db.Column(db.String(50))  # criminal, civil, internal, incident_response
     status = db.Column(db.String(20), default='active')  # active, closed, archived
     priority = db.Column(db.String(20), default='medium')  # low, medium, high, critical
-    
+
     # Foreign keys
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    
+
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     closed_at = db.Column(db.DateTime)
-    
+
     # Relationships
     evidence_items = db.relationship('Evidence', backref='case', lazy=True, cascade='all, delete-orphan')
-    
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -91,33 +90,33 @@ class Case(db.Model):
 class Evidence(db.Model):
     """Evidence files uploaded to cases"""
     __tablename__ = 'evidence'
-    
+
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     case_id = db.Column(db.String(36), db.ForeignKey('cases.id'), nullable=True)
-    
+
     filename = db.Column(db.String(255), nullable=False)
     original_filename = db.Column(db.String(255), nullable=False)
     file_path = db.Column(db.String(500), nullable=False)
     file_size = db.Column(db.BigInteger)
     file_type = db.Column(db.String(100))
     mime_type = db.Column(db.String(100))
-    
+
     # Hashes for integrity
     md5_hash = db.Column(db.String(32))
     sha1_hash = db.Column(db.String(40))
     sha256_hash = db.Column(db.String(64))
-    
+
     # Metadata
     description = db.Column(db.Text)
     tags = db.Column(db.String(500))  # comma-separated tags
     source = db.Column(db.String(200))  # where evidence came from
     seized_by = db.Column(db.String(100))
     seized_date = db.Column(db.DateTime)
-    
+
     # Analysis status
     analysis_status = db.Column(db.String(20), default='pending')  # pending, processing, completed, failed
     analysis_results = db.Column(db.Text)  # JSON string of results
-    
+
     # Chain of custody
     uploaded_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     uploaded_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -144,7 +143,7 @@ class Evidence(db.Model):
             'uploaded_at': self.uploaded_at.isoformat() if self.uploaded_at else None,
             'uploader_name': self.uploader.full_name if self.uploader else None
         }
-    
+
     def _format_bytes(self, size):
         for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
             if size < 1024.0:
@@ -155,7 +154,7 @@ class Evidence(db.Model):
 class AuditLog(db.Model):
     """Track all actions for forensic integrity"""
     __tablename__ = 'audit_logs'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
@@ -165,7 +164,7 @@ class AuditLog(db.Model):
     details = db.Column(db.Text)  # JSON string with additional details
     ip_address = db.Column(db.String(45))
     user_agent = db.Column(db.String(500))
-    
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -180,7 +179,7 @@ class AuditLog(db.Model):
 class CTFScore(db.Model):
     """CTF challenge completion scores and timestamps"""
     __tablename__ = 'ctf_scores'
-    
+
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     username = db.Column(db.String(80), nullable=False)
@@ -203,9 +202,11 @@ def init_db(app):
     """Initialize database and create default admin"""
     with app.app_context():
         db.create_all()
-        
-        # Create admin user if doesn't exist
+
+        # Create admin and investigator accounts if database is fresh
         if not User.query.filter_by(username='admin').first():
+            import secrets
+            admin_pw = os.environ.get('ADMIN_PASSWORD') or secrets.token_urlsafe(12)
             admin = User(
                 username='admin',
                 email='admin@forensync.local',
@@ -213,21 +214,21 @@ def init_db(app):
                 role='admin',
                 department='IT Security'
             )
-            admin.set_password('admin123')  # Change this in production!
+            admin.set_password(admin_pw)
             db.session.add(admin)
-            
-            # Create demo investigator
+
+            inv_pw = os.environ.get('INVESTIGATOR_PASSWORD') or secrets.token_urlsafe(12)
             investigator = User(
                 username='investigator',
                 email='inv@forensync.local',
-                full_name='Demo Investigator',
+                full_name='Forensic Investigator',
                 role='investigator',
                 department='Cyber Crime Unit'
             )
-            investigator.set_password('invest123')
+            investigator.set_password(inv_pw)
             db.session.add(investigator)
-            
+
             db.session.commit()
-            print("[OK] Default users created:")
-            print("   Admin: admin / admin123")
-            print("   Investigator: investigator / invest123")
+            print("[OK] Database initialized successfully.")
+            if not os.environ.get('ADMIN_PASSWORD'):
+                print("[NOTICE] Admin and Investigator accounts created. Configure ADMIN_PASSWORD and INVESTIGATOR_PASSWORD in .env for custom credentials.")

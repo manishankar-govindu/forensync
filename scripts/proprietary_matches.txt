@@ -1,0 +1,26 @@
+Found 25 occurrences:
+[README.md:121] │   │   └── autopsy_plugin.py      # Disk Structure Analyzer
+[README.md:127] │   │   └── belkasoft_plugin.py    # Network & Communication Parser
+[plugins\disk\autopsy_plugin.py:244] {'from': 'charlie@external.com', 'to': 'alice@company.com', 'subject': 'Urgent: Data Transfer', 'date': '2026-07-16 14:22:00', 'body_preview': 'FLAG{AUTOPSY_EMAIL_EXTRACTED_EVIDENCE}'},
+[plugins\disk\autopsy_plugin.py:309] """Index common keywords (like Autopsy does)"""
+[plugins\network\belkasoft_plugin.py:130] 'body_preview': 'FLAG{BELKASOFT_EMAIL_EXTRACTED_EVIDENCE}',
+[scripts\find_proprietary_names.py:4] TERMS = ['autopsy', 'belkasoft', 'ftk']
+[scripts\proprietary_matches.txt:2] [README.md:121] │   │   └── autopsy_plugin.py      # Disk Structure Analyzer
+[scripts\proprietary_matches.txt:3] [README.md:127] │   │   └── belkasoft_plugin.py    # Network & Communication Parser
+[scripts\proprietary_matches.txt:4] [backend\app.py:917] Body: { "tool": "foremost"|"scalpel"|"autopsy", "target_file": "path/to/file" }
+[scripts\proprietary_matches.txt:5] [plugins\disk\autopsy_plugin.py:1] # autopsy_plugin.py - Autopsy Integration Plugin for ForenSync
+[scripts\proprietary_matches.txt:6] [plugins\disk\autopsy_plugin.py:2] # Simulates Autopsy forensic disk analysis: file hashing, archive unpacking, metadata extraction,
+[scripts\proprietary_matches.txt:7] [plugins\disk\autopsy_plugin.py:18] class AutopsyIntegrationPlugin(ForensicPlugin):
+[scripts\proprietary_matches.txt:8] [plugins\disk\autopsy_plugin.py:22] return "Autopsy Disk Analyzer"
+[scripts\proprietary_matches.txt:9] [plugins\disk\autopsy_plugin.py:26] return "Integrates Autopsy-like disk analysis: file hashing, archive extraction, metadata indexing, contact/email parsing, database analysis, and USB device history detection."
+[scripts\proprietary_matches.txt:10] [plugins\disk\autopsy_plugin.py:98] report_file = os.path.join(output_dir, f"autopsy_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+[scripts\proprietary_matches.txt:11] [plugins\disk\autopsy_plugin.py:244] {'from': 'charlie@external.com', 'to': 'alice@company.com', 'subject': 'Urgent: Data Transfer', 'date': '2026-07-16 14:22:00', 'body_preview': 'FLAG{AUTOPSY_EMAIL_EXTRACTED_EVIDENCE}'},
+[scripts\proprietary_matches.txt:12] [plugins\disk\autopsy_plugin.py:309] """Index common keywords (like Autopsy does)"""
+[scripts\proprietary_matches.txt:13] [plugins\network\belkasoft_plugin.py:1] # belkasoft_plugin.py - Belkasoft X Integration Plugin for ForenSync
+[scripts\proprietary_matches.txt:14] [plugins\network\belkasoft_plugin.py:2] # Simulates Belkasoft X forensic analysis: email extraction, chat history recovery,
+[scripts\proprietary_matches.txt:15] [plugins\network\belkasoft_plugin.py:15] class BelkasoftXPlugin(ForensicPlugin):
+[scripts\proprietary_matches.txt:16] [plugins\network\belkasoft_plugin.py:19] return "Belkasoft X Analyzer"
+[scripts\proprietary_matches.txt:17] [plugins\network\belkasoft_plugin.py:23] return "Integrates Belkasoft X analysis: extracts email, chat history, web artifacts, cloud services, mobile messaging (WhatsApp, Telegram, Signal), browser history, and instant messaging data."
+[scripts\proprietary_matches.txt:18] [plugins\network\belkasoft_plugin.py:107] report_file = os.path.join(output_dir, f"belkasoft_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json")
+[scripts\proprietary_matches.txt:19] [plugins\network\belkasoft_plugin.py:131] 'body_preview': 'FLAG{BELKASOFT_EMAIL_EXTRACTED_EVIDENCE}',
+[scripts\proprietary_matches.txt:20] [scripts\find_proprietary_names.py:4] TERMS = ['autopsy', 'belkasoft', 'ftk']

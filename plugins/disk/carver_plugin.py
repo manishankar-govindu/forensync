@@ -42,7 +42,7 @@ FILE_SIGNATURES = {
         'description': 'JPEG Image'
     },
     'PNG': {
-        'header': bytes([0x89, 0x50, 0x4E, 0x47]),
+        'header': bytes([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
         'footer': bytes([0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82]),
         'extension': '.png',
         'max_size': 15 * 1024 * 1024,
@@ -303,8 +303,9 @@ class FileCarvingPlugin(ForensicPlugin):
                     if footer is not None:
                         footer_pos = data.find(footer, header_pos + len(header))
                         if footer_pos == -1:
-                            end_pos = min(header_pos + max_size, file_size)
-                            footer_found = False
+                            # Required footer not found; skip false positive
+                            search_start = header_pos + len(header)
+                            continue
                         else:
                             end_pos = footer_pos + len(footer)
                             footer_found = True
@@ -318,7 +319,7 @@ class FileCarvingPlugin(ForensicPlugin):
                 # Minimum meaningful carved file sizes to reject accidental header matches
                 MIN_SIZES = {
                     'JPEG': 10,      # 10 B — allow small test/synthetic JPEGs
-                    'PNG':  512,     # 512 B — PNG header + IHDR + IDAT minimum
+                    'PNG':  50,      # 50 B — minimum valid 1x1 PNG (~67B)
                     'BMP':  54,      # 54 B  — minimum BMP with file header + DIB header
                     'GIF':  35,      # 35 B  — minimum GIF89a
                     'PDF':  100,     # 100 B — minimum valid PDF
@@ -363,7 +364,7 @@ class FileCarvingPlugin(ForensicPlugin):
 
         return carved
     #The validation happens before any file is carved. This prevents false positives from entering the evidence pool. For BMP, the exact size from the header produces forensically sound boundaries. The search_start = header_pos + len(header) on validation failure ensures we continue scanning after the failed match, not after the max_size boundary.
-    
+
 
 if __name__ == '__main__':
     plugin = FileCarvingPlugin()

@@ -10,7 +10,9 @@ services:
       - ./evidence:/app/evidence
       - ./reports:/app/reports
       - ./instance:/app/instance
+    env_file:
+      - .env
     environment:
       - FLASK_ENV=production
-      - SECRET_KEY=your-secret-key-here
+      - SECRET_KEY=${SECRET_KEY}
     restart: unless-stopped
